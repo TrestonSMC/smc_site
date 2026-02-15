@@ -8,10 +8,10 @@ import { Menu, X, Mail, Clock, ArrowRight, Sparkles } from "lucide-react";
 import { media } from "@/lib/media";
 
 export default function HomePage() {
-const leftNav = [
-  { label: "Services", href: "/services" },
-  { label: "Showroom", href: "/showroom" },
-];
+  const leftNav = [
+    { label: "Services", href: "/services" },
+    { label: "Showroom", href: "/showroom" },
+  ];
 
   const rightNav = [
     { label: "About", href: "/#about" },
@@ -19,6 +19,16 @@ const leftNav = [
   ];
 
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // ✅ simple mobile flag (used to reduce motion + avoid autoplay video thumbnails)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener?.("change", apply);
+    return () => mq.removeEventListener?.("change", apply);
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -28,15 +38,14 @@ const leftNav = [
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const fadeUp = {
-    hidden: { opacity: 0, y: 18 },
-    visible: { opacity: 1, y: 0 },
-  };
+  // ✅ reduce motion on mobile to prevent "loads open then lags in"
+  const fadeUp = isMobile
+    ? { hidden: { opacity: 0 }, visible: { opacity: 1 } }
+    : { hidden: { opacity: 0, y: 18 }, visible: { opacity: 1, y: 0 } };
 
-  const stagger = {
-    hidden: {},
-    visible: { transition: { staggerChildren: 0.1 } },
-  };
+  const stagger = isMobile
+    ? { hidden: {}, visible: {} }
+    : { hidden: {}, visible: { transition: { staggerChildren: 0.1 } } };
 
   const NavLink = ({ href, label }: { href: string; label: string }) => (
     <Link
@@ -56,7 +65,7 @@ const leftNav = [
       title: "Featured Client Video",
       desc:
         "A featured cut that shows the standard — story, pacing, and premium edits you can preview right here.",
-      meta: "Plays with sound • Smart fit for any aspect ratio",
+      meta: "Tap to play • Sound on",
       actionLabel: "Play",
       videoSrc: media.featuredClient,
       thumb: "/images/thumb-featured-video.jpg",
@@ -67,7 +76,7 @@ const leftNav = [
         eyebrow: "AT SMC • DOZERS",
         title: "DozersGrill.com",
         desc:
-          "We develop websites — Dozers is a live build focused on speed, clean UX, and a restaurant-first brand position.",
+          "A live build focused on speed, clean UX, and a restaurant-first brand position.",
         meta: "Live client website",
         actionLabel: "Visit site",
         href: "https://dozersgrill.com",
@@ -79,55 +88,45 @@ const leftNav = [
         eyebrow: "SMC PRODUCT",
         title: "SMC App (App Store)",
         desc:
-          "We develop apps — a client portal for updates, approvals, and a clean way to keep projects moving.",
+          "A client portal for updates, approvals, and a clean way to keep projects moving.",
         meta: "Available now",
         actionLabel: "Open App Store",
         href: "https://apps.apple.com/us/app/slater-media-co/id6754180869",
+        // ✅ desktop-only video thumb; mobile uses a static image to avoid lag/autoplay issues
         videoThumbSrc: media.smcAppPreview,
+        mobileThumb: "/images/thumb-smc-app.jpg",
         kind: "videoThumbLink" as const,
       },
     ],
   };
 
-  // ===================== LUX CARD SYSTEM =====================
+  // ===================== LUX CARD SYSTEM (lightened) =====================
   const ring =
-    "border border-white/10 shadow-[0_22px_90px_rgba(0,0,0,0.68),0_0_0_1px_rgba(255,255,255,0.06)]";
+    "border border-white/10 shadow-[0_18px_70px_rgba(0,0,0,0.62),0_0_0_1px_rgba(255,255,255,0.06)]";
 
   const cardShell =
-    "group relative overflow-hidden rounded-3xl bg-white/[0.055] backdrop-blur-md " +
-    "transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_30px_120px_rgba(0,0,0,0.78),0_0_0_1px_rgba(255,255,255,0.10)] " +
+    "group relative overflow-hidden rounded-3xl bg-white/[0.045] backdrop-blur-md " +
+    "transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_26px_110px_rgba(0,0,0,0.72),0_0_0_1px_rgba(255,255,255,0.10)] " +
     ring;
 
   const Glow = ({ variant }: { variant: "a" | "b" | "c" }) => {
+    // ✅ reduced intensity (less “busy”)
     const glowBg =
       variant === "a"
-        ? "radial-gradient(900px circle at 18% 0%, rgba(0,180,255,0.28), transparent 55%), radial-gradient(700px circle at 80% 100%, rgba(0,180,255,0.14), transparent 60%)"
+        ? "radial-gradient(900px circle at 18% 0%, rgba(0,180,255,0.20), transparent 60%)"
         : variant === "b"
-        ? "radial-gradient(900px circle at 18% 0%, rgba(179,106,255,0.28), transparent 55%), radial-gradient(700px circle at 80% 100%, rgba(179,106,255,0.14), transparent 60%)"
-        : "radial-gradient(900px circle at 18% 0%, rgba(255,196,92,0.24), transparent 55%), radial-gradient(700px circle at 80% 100%, rgba(255,196,92,0.12), transparent 60%)";
-
-    const edgeAura =
-      variant === "a"
-        ? "radial-gradient(1200px circle at 50% 50%, transparent 62%, rgba(0,180,255,0.60) 78%, rgba(0,180,255,0.0) 92%)"
-        : variant === "b"
-        ? "radial-gradient(1200px circle at 50% 50%, transparent 62%, rgba(179,106,255,0.60) 78%, rgba(179,106,255,0.0) 92%)"
-        : "radial-gradient(1200px circle at 50% 50%, transparent 62%, rgba(255,196,92,0.58) 78%, rgba(255,196,92,0.0) 92%)";
+        ? "radial-gradient(900px circle at 18% 0%, rgba(179,106,255,0.18), transparent 60%)"
+        : "radial-gradient(900px circle at 18% 0%, rgba(255,196,92,0.16), transparent 62%)";
 
     return (
-      <>
-        <div
-          className="pointer-events-none absolute -inset-px opacity-0 group-hover:opacity-100 transition duration-300"
-          style={{ background: glowBg }}
-        />
-        <div
-          className="pointer-events-none absolute -inset-10 opacity-0 blur-2xl group-hover:opacity-100 transition duration-300"
-          style={{ background: edgeAura }}
-        />
-      </>
+      <div
+        className="pointer-events-none absolute -inset-px opacity-0 group-hover:opacity-100 transition duration-300"
+        style={{ background: glowBg }}
+      />
     );
   };
 
-  // ===================== CLIENT LOGO MARQUEE (BIGGER + FLOAT + 2 LAYERS) =====================
+  // ===================== CLIENT LOGO MARQUEE (SIMPLIFIED: 1 LAYER) =====================
   const clientLogos = useMemo(
     () => [
       { src: "/images/clients/dutch-bros.png", alt: "Dutch Bros" },
@@ -141,60 +140,32 @@ const leftNav = [
 
   const Marquee = () => {
     const front = [...clientLogos, ...clientLogos];
-    const back = [...clientLogos, ...clientLogos].reverse();
 
     return (
-      <section aria-label="Clients" className="relative -mt-10 sm:-mt-14 pb-10 sm:pb-12">
+      <section aria-label="Clients" className="relative -mt-10 sm:-mt-14 pb-8 sm:pb-10">
         <div className="relative w-full">
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-24 sm:w-40 bg-gradient-to-r from-black/70 to-transparent z-20" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-24 sm:w-40 bg-gradient-to-l from-black/70 to-transparent z-20" />
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-40 bg-gradient-to-r from-black/70 to-transparent z-20" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-40 bg-gradient-to-l from-black/70 to-transparent z-20" />
 
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <div className="mb-4 sm:mb-5 text-xs font-semibold tracking-[0.22em] text-white/55">
+            <div className="mb-3 sm:mb-4 text-xs font-semibold tracking-[0.22em] text-white/55">
               TRUSTED BY • COLLABORATIONS
             </div>
           </div>
 
           <div className="marqueeWrap">
-            {/* BACK LAYER (slower, opposite direction) */}
-            <div className="marquee marquee--back" aria-hidden="true">
-              <div className="marquee__track marquee__track--back">
-                {back.map((l, idx) => (
-                  <div
-                    key={`back-${l.src}-${idx}`}
-                    className="marquee__item"
-                    style={{
-                      ["--d" as any]: `${(idx % 7) * 110}ms`,
-                      ["--s" as any]: `${0.92 + (idx % 5) * 0.03}`,
-                      ["--b" as any]: `${(idx % 4) * 0.6}px`,
-                      ["--o" as any]: `${0.52 + (idx % 5) * 0.06}`,
-                    }}
-                    title={l.alt}
-                  >
-                    <div className="logoBox logoBox--back">
-                      <Image src={l.src} alt={l.alt} fill className="object-contain" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* FRONT LAYER (bigger) */}
-            <div className="marquee marquee--front">
-              <div className="marquee__track marquee__track--front">
+            <div className="marquee">
+              <div className="marquee__track">
                 {front.map((l, idx) => (
                   <div
                     key={`front-${l.src}-${idx}`}
                     className="marquee__item"
+                    title={l.alt}
                     style={{
                       ["--d" as any]: `${(idx % 7) * 110}ms`,
-                      ["--s" as any]: `${0.98 + (idx % 5) * 0.03}`,
-                      ["--b" as any]: `${(idx % 4) * 0.45}px`,
-                      ["--o" as any]: `${0.72 + (idx % 5) * 0.05}`,
                     }}
-                    title={l.alt}
                   >
-                    <div className="logoBox logoBox--front">
+                    <div className="logoBox">
                       <Image src={l.src} alt={l.alt} fill className="object-contain" />
                     </div>
                   </div>
@@ -210,92 +181,51 @@ const leftNav = [
               overflow: hidden;
               padding: 6px 0;
             }
-
             .marquee {
               overflow: hidden;
               width: 100%;
             }
-
-            .marquee--back {
-              position: absolute;
-              inset: 0;
-              z-index: 0;
-              opacity: 0.85;
-              pointer-events: none;
-            }
-
-            .marquee--front {
-              position: relative;
-              z-index: 1;
-            }
-
             .marquee__track {
               display: flex;
               align-items: center;
-              gap: 56px;
+              gap: 42px;
               width: max-content;
-              padding: 0 34px;
+              padding: 0 26px;
               will-change: transform;
+              animation: scrollLeft 26s linear infinite;
             }
-
-            .marquee__track--front {
-              animation: scrollLeft 18s linear infinite;
-            }
-
-            .marquee__track--back {
-              animation: scrollRight 32s linear infinite;
-              filter: saturate(0.95);
-            }
-
             .marquee__item {
               display: flex;
               align-items: center;
               justify-content: center;
-              transform: translateY(0) scale(var(--s));
-              opacity: var(--o);
-              filter: blur(var(--b)) drop-shadow(0 28px 70px rgba(0, 0, 0, 0.55));
-              animation: float 4.2s ease-in-out infinite;
+              opacity: 0.85;
+              filter: drop-shadow(0 20px 50px rgba(0, 0, 0, 0.55));
+              /* ✅ no float on mobile */
+              animation: none;
               animation-delay: var(--d);
               will-change: transform;
             }
-
-            /* BIGGER LOGOS */
             .logoBox {
               position: relative;
+              height: 52px;
+              width: 240px;
             }
-
-            .logoBox--front {
-              height: 74px;
-              width: 360px;
-            }
-
-            .logoBox--back {
-              height: 64px;
-              width: 320px;
-            }
-
             @media (min-width: 640px) {
-              .logoBox--front {
-                height: 86px;
-                width: 440px;
-              }
-              .logoBox--back {
-                height: 72px;
-                width: 380px;
+              .logoBox {
+                height: 70px;
+                width: 360px;
               }
             }
-
             @media (min-width: 768px) {
-              .logoBox--front {
-                height: 96px;
-                width: 520px;
+              .logoBox {
+                height: 82px;
+                width: 430px;
               }
-              .logoBox--back {
-                height: 80px;
-                width: 440px;
+              /* ✅ float only on desktop */
+              .marquee__item {
+                animation: float 4.2s ease-in-out infinite;
               }
             }
-
             @keyframes scrollLeft {
               from {
                 transform: translateX(0);
@@ -304,29 +234,17 @@ const leftNav = [
                 transform: translateX(-50%);
               }
             }
-
-            @keyframes scrollRight {
-              from {
-                transform: translateX(-50%);
-              }
-              to {
-                transform: translateX(0);
-              }
-            }
-
             @keyframes float {
               0%,
               100% {
-                transform: translateY(0) scale(var(--s));
+                transform: translateY(0);
               }
               50% {
-                transform: translateY(-12px) scale(var(--s));
+                transform: translateY(-10px);
               }
             }
-
             @media (prefers-reduced-motion: reduce) {
-              .marquee__track--front,
-              .marquee__track--back {
+              .marquee__track {
                 animation: none;
                 transform: translateX(0);
               }
@@ -340,22 +258,19 @@ const leftNav = [
     );
   };
 
-  // ===================== FEATURED =====================
+  // ===================== FEATURED (SIMPLIFIED: NO blurred background video) =====================
   const FeaturedCard = ({ item }: { item: typeof cards.featured }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [err, setErr] = useState<string | null>(null);
-
-    const bgRef = useRef<HTMLVideoElement | null>(null);
     const fgRef = useRef<HTMLVideoElement | null>(null);
 
     const close = () => {
-      [bgRef.current, fgRef.current].forEach((v) => {
-        if (!v) return;
+      if (fgRef.current) {
         try {
-          v.pause();
-          v.currentTime = 0;
+          fgRef.current.pause();
+          fgRef.current.currentTime = 0;
         } catch {}
-      });
+      }
       setIsPlaying(false);
       setErr(null);
     };
@@ -366,11 +281,6 @@ const leftNav = [
 
       requestAnimationFrame(async () => {
         try {
-          if (bgRef.current) {
-            bgRef.current.muted = true;
-            bgRef.current.volume = 0;
-            await bgRef.current.play();
-          }
           if (fgRef.current) {
             fgRef.current.muted = false;
             fgRef.current.volume = 1;
@@ -379,7 +289,7 @@ const leftNav = [
         } catch (e) {
           console.error("Video play error:", e);
           setErr(
-            "Couldn’t start video. Check MP4 codec (H.264/AAC) and confirm the Supabase URL is public."
+            "Couldn’t start video. Check MP4 codec (H.264/AAC) and confirm the URL is public."
           );
         }
       });
@@ -400,7 +310,6 @@ const leftNav = [
                 priority
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/10" />
-              <div className="absolute inset-0 opacity-75 mix-blend-screen bg-[radial-gradient(1200px_circle_at_50%_10%,rgba(255,196,92,0.12),transparent_55%),radial-gradient(900px_circle_at_15%_0%,rgba(0,180,255,0.14),transparent_60%),radial-gradient(900px_circle_at_85%_5%,rgba(179,106,255,0.14),transparent_60%)]" />
 
               <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
                 <div className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight text-white">
@@ -421,18 +330,8 @@ const leftNav = [
             </>
           ) : (
             <>
-              <video
-                ref={bgRef}
-                src={item.videoSrc}
-                playsInline
-                loop
-                muted
-                preload="metadata"
-                className="absolute inset-0 h-full w-full object-cover scale-[1.18] blur-2xl opacity-60"
-                onError={() => setErr("Background video failed to load (URL or permissions).")}
-              />
-
-              <div className="absolute inset-0 bg-black/45" />
+              <div className="absolute inset-0 bg-black/55" />
+              <div className="absolute inset-0 opacity-70 bg-[radial-gradient(900px_circle_at_50%_10%,rgba(0,180,255,0.10),transparent_60%)]" />
 
               <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
                 <video
@@ -508,25 +407,34 @@ const leftNav = [
     return (
       <motion.div
         variants={fadeUp}
-        transition={{ delay: 0.05 + i * 0.05 }}
+        transition={isMobile ? undefined : { delay: 0.05 + i * 0.05 }}
         className={cardShell}
       >
         <Glow variant={variant} />
 
         <div className="relative aspect-[16/10] w-full overflow-hidden">
           {isVideoThumbLink ? (
-            <video
-              src={item.videoThumbSrc}
-              className="absolute inset-0 h-full w-full object-cover scale-[1.02] group-hover:scale-[1.06] transition-transform duration-500"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-            />
+            isMobile ? (
+              <Image
+                src={(item as any).mobileThumb || "/images/thumb-smc-app.jpg"}
+                alt={`${item.title} thumbnail`}
+                fill
+                className="object-cover scale-[1.02] group-hover:scale-[1.06] transition-transform duration-500"
+              />
+            ) : (
+              <video
+                src={(item as any).videoThumbSrc}
+                className="absolute inset-0 h-full w-full object-cover scale-[1.02] group-hover:scale-[1.06] transition-transform duration-500"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+              />
+            )
           ) : (
             <Image
-              src={item.thumb}
+              src={(item as any).thumb}
               alt={`${item.title} thumbnail`}
               fill
               className="object-cover scale-[1.02] group-hover:scale-[1.06] transition-transform duration-500"
@@ -534,24 +442,23 @@ const leftNav = [
           )}
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/10" />
-          <div className="absolute inset-0 opacity-75 mix-blend-screen bg-[radial-gradient(900px_circle_at_20%_0%,rgba(179,106,255,0.14),transparent_58%),radial-gradient(900px_circle_at_80%_10%,rgba(255,196,92,0.12),transparent_60%)]" />
 
           <div className="absolute bottom-0 left-0 right-0 p-5">
             <div className="text-lg font-semibold tracking-tight text-white">{item.title}</div>
-            <div className="mt-1 text-sm text-white/70">{item.meta}</div>
+            <div className="mt-1 text-sm text-white/70">{(item as any).meta}</div>
           </div>
         </div>
 
         <div className="relative p-6 sm:p-7">
-          <p className="text-sm md:text-[15px] leading-relaxed text-white/70">{item.desc}</p>
+          <p className="text-sm md:text-[15px] leading-relaxed text-white/70">{(item as any).desc}</p>
 
           <div className="mt-6 flex items-center justify-between">
-            <div className="text-sm font-semibold text-white/80">{item.actionLabel}</div>
+            <div className="text-sm font-semibold text-white/80">{(item as any).actionLabel}</div>
 
             <a
-              href={item.href}
-              target={item.href.startsWith("http") ? "_blank" : undefined}
-              rel={item.href.startsWith("http") ? "noreferrer" : undefined}
+              href={(item as any).href}
+              target={(item as any).href.startsWith("http") ? "_blank" : undefined}
+              rel={(item as any).href.startsWith("http") ? "noreferrer" : undefined}
               className="rounded-full border border-white/15 bg-black/40 px-5 py-2 text-sm font-semibold text-white/85 hover:bg-black/60 transition"
             >
               Open →
@@ -631,32 +538,13 @@ const leftNav = [
 
   return (
     <main className="relative min-h-screen text-white overflow-hidden bg-transparent">
-      {/* ===================== BACKGROUND VIDEO ===================== */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <motion.video
-          initial={{ scale: 1.05 }}
-          animate={{ scale: 1.12 }}
-          transition={{ duration: 22, ease: "linear" }}
-          className="h-full w-full object-cover brightness-[0.7] contrast-[1.05]"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          aria-hidden="true"
-        >
-          <source src={media.heroVideo} type="video/mp4" />
-        </motion.video>
-
-        <div className="absolute inset-0 bg-black/60" />
-        <div className="absolute inset-0 opacity-80 bg-[radial-gradient(1200px_circle_at_50%_0%,rgba(255,196,92,0.10),transparent_60%),radial-gradient(1100px_circle_at_10%_0%,rgba(0,180,255,0.10),transparent_55%),radial-gradient(1100px_circle_at_90%_0%,rgba(179,106,255,0.09),transparent_55%)]" />
-        <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-black/60 to-transparent" />
-      </div>
+      {/* ✅ HERO BACKGROUND: reliable (poster) + no framer-motion */}
+      <HeroBackground isMobile={isMobile} heroSrc={media.heroVideo} />
 
       <div className="relative z-10">
         {/* ===================== NAV ===================== */}
         <header className="sticky top-0 z-50 w-full">
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] bg-[linear-gradient(90deg,rgba(179,106,255,0.95),rgba(0,180,255,0.95),rgba(255,196,92,0.95))] shadow-[0_0_24px_rgba(0,180,255,0.35)]" />
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] bg-[linear-gradient(90deg,rgba(179,106,255,0.85),rgba(0,180,255,0.85),rgba(255,196,92,0.85))] shadow-[0_0_18px_rgba(0,180,255,0.28)]" />
           <div className="bg-black/55 backdrop-blur-md">
             <div className="mx-auto max-w-7xl px-4 sm:px-6">
               <div className="relative flex h-[84px] items-center">
@@ -755,8 +643,8 @@ const leftNav = [
           )}
         </header>
 
-        {/* ===================== HERO ===================== */}
-        <section className="relative min-h-[calc(100vh-84px)] flex items-center">
+        {/* ===================== HERO (LESS CLUTTER) ===================== */}
+        <section className="relative min-h-[calc(92vh-84px)] flex items-center">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 w-full">
             <motion.div
               variants={stagger}
@@ -764,36 +652,38 @@ const leftNav = [
               animate="visible"
               className="mx-auto max-w-3xl text-center"
             >
+              <motion.div
+                variants={fadeUp}
+                className="mx-auto inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-4 py-2"
+              >
+                <Sparkles className="h-4 w-4 text-white/80" />
+                <div className="text-xs font-semibold tracking-[0.22em] text-white/60">
+                  SLATER MEDIA COMPANY
+                </div>
+              </motion.div>
+
               <motion.h1
                 variants={fadeUp}
-                transition={{ delay: 0.05 }}
-                className="text-3xl sm:text-4xl md:text-6xl font-semibold leading-[1.05] tracking-tight"
+                transition={isMobile ? undefined : { delay: 0.05 }}
+                className="mt-5 text-3xl sm:text-4xl md:text-6xl font-semibold leading-[1.05] tracking-tight"
               >
                 {portlText("hero.headline", "The Creatives Express")}
               </motion.h1>
 
-              <motion.h2
-                variants={fadeUp}
-                transition={{ delay: 0.1 }}
-                className="mt-3 sm:mt-4 text-lg sm:text-xl md:text-2xl font-medium tracking-wide text-white/85"
-              >
-                {portlText("hero.subheadline", "Slater Media Company")}
-              </motion.h2>
-
               <motion.p
                 variants={fadeUp}
-                transition={{ delay: 0.15 }}
+                transition={isMobile ? undefined : { delay: 0.12 }}
                 className="mt-5 sm:mt-6 text-base md:text-lg text-white/70 leading-relaxed"
               >
                 {portlText(
                   "hero.body",
-                  "We design, develop, and produce high-impact digital experiences. From scalable apps and websites to weddings, real estate, and cinematic media, we help ideas take shape and show up at their best."
+                  "We design, develop, and produce high-impact digital experiences — websites, apps, and cinematic media that help brands show up at their best."
                 )}
               </motion.p>
 
               <motion.div
                 variants={fadeUp}
-                transition={{ delay: 0.2 }}
+                transition={isMobile ? undefined : { delay: 0.18 }}
                 className="mt-7 sm:mt-8 h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent"
               />
             </motion.div>
@@ -803,7 +693,7 @@ const leftNav = [
         <Marquee />
 
         {/* ===================== NEW AT SMC ===================== */}
-        <section id="services" className="relative -mt-2 sm:-mt-4 pb-14 sm:pb-16">
+        <section id="services" className="relative -mt-2 sm:-mt-4 pb-12 sm:pb-14">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <motion.div
               variants={stagger}
@@ -818,11 +708,11 @@ const leftNav = [
                   </div>
 
                   <h3 className="mt-3 text-2xl md:text-4xl font-semibold tracking-tight">
-                    Driven to design, create and develop
+                    Recent work and builds
                   </h3>
 
                   <p className="mt-3 max-w-3xl text-white/70 leading-relaxed">
-                    Check out recent projects — with Slater Media Company anything is possible.
+                    A quick look at what we’re shipping right now.
                   </p>
                 </div>
               </motion.div>
@@ -840,7 +730,7 @@ const leftNav = [
           </div>
         </section>
 
-        {/* ===================== INSIDER ACCESS (CONIC BORDER + SHEEN) ===================== */}
+        {/* ===================== INSIDER ACCESS (KEEP, BUT A BIT LIGHTER) ===================== */}
         <section id="insider-access" className="relative pb-10 sm:pb-12">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <motion.div
@@ -849,171 +739,97 @@ const leftNav = [
               whileInView="visible"
               viewport={{ once: true, amount: 0.2 }}
             >
-              <motion.div variants={fadeUp} className="relative">
-                {/* conic gradient border + animated sweep */}
-                <div className="luxBorder">
-                  <div className="luxSheen" />
-                </div>
+              <motion.div variants={fadeUp} className={`${cardShell} relative`}>
+                <Glow variant="c" />
 
-                <div className={`${cardShell} relative`}>
-                  <Glow variant="c" />
-
-                  <div className="pointer-events-none absolute inset-x-0 top-0 h-28 opacity-80 bg-[radial-gradient(900px_circle_at_50%_0%,rgba(255,196,92,0.18),transparent_60%),radial-gradient(900px_circle_at_10%_0%,rgba(0,180,255,0.12),transparent_55%),radial-gradient(900px_circle_at_90%_0%,rgba(179,106,255,0.12),transparent_55%)]" />
-
-                  <div className="relative p-7 sm:p-10">
-                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-                      <div>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-4 py-2">
-                          <Sparkles className="h-4 w-4 text-white/80" />
-                          <div className="text-xs font-semibold tracking-[0.22em] text-white/60">
-                            INSIDER ACCESS
-                          </div>
-                        </div>
-
-                        <h3 className="mt-4 text-2xl md:text-4xl font-semibold tracking-tight">
-                          Early access to what we’re building
-                        </h3>
-                        <p className="mt-3 max-w-3xl text-white/70 leading-relaxed">
-                          Not everything we build hits the market right away. Get early previews,
-                          tools, resources, and drop announcements — before they’re public.
-                        </p>
-
-                        <div className="mt-6 flex flex-wrap gap-2">
-                          {[
-                            { t: "High-signal drops", d: "Only what matters" },
-                            { t: "No spam", d: "Ever" },
-                            { t: "Early previews", d: "Before launch" },
-                          ].map((x) => (
-                            <div
-                              key={x.t}
-                              className="rounded-full border border-white/10 bg-black/35 px-4 py-2 shadow-[0_18px_60px_rgba(0,0,0,0.25)]"
-                            >
-                              <div className="text-xs font-semibold text-white/85">{x.t}</div>
-                              <div className="text-[11px] text-white/55">{x.d}</div>
-                            </div>
-                          ))}
+                <div className="relative p-7 sm:p-10">
+                  <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                    <div>
+                      <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-4 py-2">
+                        <Sparkles className="h-4 w-4 text-white/80" />
+                        <div className="text-xs font-semibold tracking-[0.22em] text-white/60">
+                          INSIDER ACCESS
                         </div>
                       </div>
 
-                      <div className="flex gap-3 flex-wrap">
-                        <Link
-                          href="/insider-access"
-                          className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/45 px-6 py-3 text-sm font-semibold text-white/90 hover:bg-black/65 transition"
-                        >
-                          Get Insider Access <ArrowRight className="h-4 w-4" />
-                        </Link>
-                        <a
-                          href="mailto:hello@slatermediacompany.com"
-                          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-6 py-3 text-sm font-semibold text-white/75 hover:bg-black/45 transition"
-                        >
-                          <Mail className="h-4 w-4" />
-                          Email us
-                        </a>
+                      <h3 className="mt-4 text-2xl md:text-4xl font-semibold tracking-tight">
+                        Early access to what we’re building
+                      </h3>
+                      <p className="mt-3 max-w-3xl text-white/70 leading-relaxed">
+                        Get early previews, tools, resources, and announcements — before they’re public.
+                      </p>
+
+                      <div className="mt-6 flex flex-wrap gap-2">
+                        {[
+                          { t: "High-signal drops", d: "Only what matters" },
+                          { t: "No spam", d: "Ever" },
+                          { t: "Early previews", d: "Before launch" },
+                        ].map((x) => (
+                          <div
+                            key={x.t}
+                            className="rounded-full border border-white/10 bg-black/35 px-4 py-2 shadow-[0_18px_60px_rgba(0,0,0,0.18)]"
+                          >
+                            <div className="text-xs font-semibold text-white/85">{x.t}</div>
+                            <div className="text-[11px] text-white/55">{x.d}</div>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
-                    <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {[
-                        {
-                          icon: Sparkles,
-                          t: "Early releases",
-                          d: "Preview features, templates, and product drops before launch.",
-                        },
-                        {
-                          icon: Mail,
-                          t: "Tools + resources",
-                          d: "Guides, frameworks, and assets we actually use to ship.",
-                        },
-                        {
-                          icon: ArrowRight,
-                          t: "Newsletter drops",
-                          d: "Short, useful updates — experiments, wins, and what’s next.",
-                        },
-                      ].map((x) => (
-                        <div
-                          key={x.t}
-                          className="rounded-3xl border border-white/10 bg-black/30 p-5 sm:p-6 shadow-[0_18px_70px_rgba(0,0,0,0.35)]"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/35">
-                              <x.icon className="h-5 w-5 text-white/85" />
-                            </div>
-                            <div className="text-sm font-semibold text-white/90">{x.t}</div>
-                          </div>
-                          <div className="mt-3 text-sm text-white/65 leading-relaxed">{x.d}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="mt-7 text-xs text-white/45 leading-relaxed">
-                      No spam. Just high-signal updates and early access.
+                    <div className="flex gap-3 flex-wrap">
+                      <Link
+                        href="/insider-access"
+                        className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/45 px-6 py-3 text-sm font-semibold text-white/90 hover:bg-black/65 transition"
+                      >
+                        Get Insider Access <ArrowRight className="h-4 w-4" />
+                      </Link>
+                      <a
+                        href="mailto:hello@slatermediacompany.com"
+                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-6 py-3 text-sm font-semibold text-white/75 hover:bg-black/45 transition"
+                      >
+                        <Mail className="h-4 w-4" />
+                        Email us
+                      </a>
                     </div>
                   </div>
+
+                  <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[
+                      {
+                        icon: Sparkles,
+                        t: "Early releases",
+                        d: "Preview features, templates, and product drops before launch.",
+                      },
+                      {
+                        icon: Mail,
+                        t: "Tools + resources",
+                        d: "Guides, frameworks, and assets we actually use to ship.",
+                      },
+                      {
+                        icon: ArrowRight,
+                        t: "Newsletter drops",
+                        d: "Short, useful updates — experiments, wins, and what’s next.",
+                      },
+                    ].map((x) => (
+                      <div
+                        key={x.t}
+                        className="rounded-3xl border border-white/10 bg-black/30 p-5 sm:p-6 shadow-[0_18px_70px_rgba(0,0,0,0.25)]"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/35">
+                            <x.icon className="h-5 w-5 text-white/85" />
+                          </div>
+                          <div className="text-sm font-semibold text-white/90">{x.t}</div>
+                        </div>
+                        <div className="mt-3 text-sm text-white/65 leading-relaxed">{x.d}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-7 text-xs text-white/45 leading-relaxed">
+                    No spam. Just high-signal updates and early access.
+                  </div>
                 </div>
-
-                <style jsx>{`
-                  .luxBorder {
-                    position: absolute;
-                    inset: -1px;
-                    border-radius: 24px;
-                    background: conic-gradient(
-                      from 180deg,
-                      rgba(179, 106, 255, 0.65),
-                      rgba(0, 180, 255, 0.65),
-                      rgba(255, 196, 92, 0.55),
-                      rgba(179, 106, 255, 0.65)
-                    );
-                    filter: blur(0px);
-                    opacity: 0.55;
-                    pointer-events: none;
-                  }
-
-                  .luxBorder::before {
-                    content: "";
-                    position: absolute;
-                    inset: 1px;
-                    border-radius: 23px;
-                    background: rgba(0, 0, 0, 0.35);
-                    mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
-                    -webkit-mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
-                    -webkit-mask-composite: xor;
-                    mask-composite: exclude;
-                    padding: 1px;
-                  }
-
-                  .luxSheen {
-                    position: absolute;
-                    inset: -140px -240px;
-                    background: radial-gradient(
-                      520px circle at 0% 50%,
-                      rgba(255, 255, 255, 0.16),
-                      rgba(255, 255, 255, 0) 62%
-                    );
-                    transform: translateX(-35%);
-                    animation: sheen 5.8s ease-in-out infinite;
-                    opacity: 0.65;
-                    mix-blend-mode: screen;
-                  }
-
-                  @keyframes sheen {
-                    0% {
-                      transform: translateX(-35%) rotate(-8deg);
-                    }
-                    50% {
-                      transform: translateX(35%) rotate(8deg);
-                    }
-                    100% {
-                      transform: translateX(-35%) rotate(-8deg);
-                    }
-                  }
-
-                  @media (prefers-reduced-motion: reduce) {
-                    .luxSheen {
-                      animation: none;
-                      transform: translateX(0);
-                    }
-                  }
-                `}</style>
               </motion.div>
             </motion.div>
           </div>
@@ -1184,6 +1000,56 @@ const leftNav = [
     </main>
   );
 }
+
+function HeroBackground({
+  isMobile,
+  heroSrc,
+}: {
+  isMobile: boolean;
+  heroSrc: string;
+}) {
+  const vRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const v = vRef.current;
+    if (!v) return;
+
+    const t = setTimeout(() => {
+      v.muted = true;
+      // playsInline is a prop, but we set it anyway for Safari weirdness
+      (v as any).playsInline = true;
+      v.play().catch(() => {
+        // Autoplay may be blocked. Poster will cover it.
+      });
+    }, 50);
+
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-0 pointer-events-none">
+      <video
+        ref={vRef}
+        className="h-full w-full object-cover brightness-[0.72] contrast-[1.05]"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload={isMobile ? "metadata" : "auto"}
+        poster="/images/hero-poster.jpg"
+        aria-hidden="true"
+      >
+        <source src={heroSrc} type="video/mp4" />
+      </video>
+
+      {/* ✅ keep overlays minimal */}
+      <div className="absolute inset-0 bg-black/65" />
+      <div className="absolute inset-0 opacity-70 bg-[radial-gradient(900px_circle_at_50%_0%,rgba(0,180,255,0.08),transparent_60%)]" />
+      <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/55 to-transparent" />
+    </div>
+  );
+}
+
 
 
 
