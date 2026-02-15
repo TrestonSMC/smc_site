@@ -4,19 +4,29 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { Menu, X } from "lucide-react";
+import { media } from "@/lib/media";
 
 export default function HomePage() {
   const leftNav = [
-    // ✅ This now routes to the Services page
     { label: "Services", href: "/services" },
-    // ✅ Hash links are written as /#section so they work from other pages too
     { label: "Showroom", href: "/#showroom" },
   ];
 
-const rightNav = [
-  { label: "About", href: "/#about" },
-  { label: "Insider Access", href: "/insider-access" },
-];
+  const rightNav = [
+    { label: "About", href: "/#about" },
+    { label: "Insider Access", href: "/insider-access" },
+  ];
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const fadeUp = {
     hidden: { opacity: 0, y: 18 },
@@ -33,6 +43,7 @@ const rightNav = [
     <Link
       href={href}
       className="group relative px-4 py-3 text-base font-semibold tracking-wide text-white/90 hover:text-white transition"
+      onClick={() => setMobileOpen(false)}
     >
       {label}
       <span className="pointer-events-none absolute left-1/2 -bottom-1 h-[2px] w-0 -translate-x-1/2 bg-white/90 transition-all duration-300 group-hover:w-full" />
@@ -48,7 +59,7 @@ const rightNav = [
         "A featured cut that shows the standard — story, pacing, and premium edits you can preview right here.",
       meta: "Plays with sound • Smart fit for any aspect ratio",
       actionLabel: "Play",
-      videoSrc: "/videos/featured-client.mp4",
+      videoSrc: media.featuredClient,
       thumb: "/images/thumb-featured-video.jpg",
     },
     grid: [
@@ -73,7 +84,7 @@ const rightNav = [
         meta: "Available now",
         actionLabel: "Open App Store",
         href: "https://apps.apple.com/us/app/slater-media-co/id6754180869",
-        videoThumbSrc: "/videos/smc-app-preview.mp4",
+        videoThumbSrc: media.smcAppPreview,
         kind: "videoThumbLink" as const,
       },
     ],
@@ -122,7 +133,7 @@ const rightNav = [
     </>
   );
 
-  // ===================== FEATURED (BLUR BACKGROUND SAME VIDEO) =====================
+  // ===================== FEATURED =====================
   const FeaturedCard = ({ item }: { item: typeof cards.featured }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [err, setErr] = useState<string | null>(null);
@@ -153,7 +164,6 @@ const rightNav = [
             bgRef.current.volume = 0;
             await bgRef.current.play();
           }
-
           if (fgRef.current) {
             fgRef.current.muted = false;
             fgRef.current.volume = 1;
@@ -161,7 +171,9 @@ const rightNav = [
           }
         } catch (e) {
           console.error("Video play error:", e);
-          setErr("Couldn’t start video. Check MP4 codec (H.264/AAC) or file path.");
+          setErr(
+            "Couldn’t start video. Check MP4 codec (H.264/AAC) and confirm the Supabase URL is public."
+          );
         }
       });
     };
@@ -184,8 +196,8 @@ const rightNav = [
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/10" />
               <CardHeaderChips eyebrow={item.eyebrow} type={item.type} />
 
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <div className="text-2xl md:text-3xl font-semibold tracking-tight text-white">
+              <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
+                <div className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight text-white">
                   {item.title}
                 </div>
                 <div className="mt-1 text-sm text-white/70">{item.meta}</div>
@@ -208,14 +220,15 @@ const rightNav = [
                 src={item.videoSrc}
                 playsInline
                 loop
+                muted
                 preload="metadata"
                 className="absolute inset-0 h-full w-full object-cover scale-[1.18] blur-2xl opacity-60"
-                onError={() => setErr("Background video failed to load.")}
+                onError={() => setErr("Background video failed to load (URL or permissions).")}
               />
 
               <div className="absolute inset-0 bg-black/45" />
 
-              <div className="absolute inset-0 flex items-center justify-center p-6">
+              <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
                 <video
                   ref={fgRef}
                   src={item.videoSrc}
@@ -224,14 +237,12 @@ const rightNav = [
                   preload="metadata"
                   className="max-h-full max-w-full rounded-2xl border border-[rgba(0,180,255,0.18)] bg-black/25 object-contain shadow-[0_18px_70px_rgba(0,0,0,0.65)]"
                   onError={() =>
-                    setErr(
-                      "Video failed to load. Confirm /public/videos/featured-client.mp4 and export H.264/AAC."
-                    )
+                    setErr("Video failed to load. Confirm bucket is PUBLIC and filename matches.")
                   }
                 />
               </div>
 
-              <div className="absolute inset-x-0 top-0 p-4">
+              <div className="absolute inset-x-0 top-0 p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/55 px-3 py-1 text-[11px] font-semibold text-white/80">
                     <Dot />
@@ -251,7 +262,7 @@ const rightNav = [
           )}
         </div>
 
-        <div className="relative p-8">
+        <div className="relative p-6 sm:p-8">
           <p className="text-sm md:text-[15px] leading-relaxed text-white/70">{item.desc}</p>
 
           {err && (
@@ -327,7 +338,7 @@ const rightNav = [
           </div>
         </div>
 
-        <div className="relative p-7">
+        <div className="relative p-6 sm:p-7">
           <p className="text-sm md:text-[15px] leading-relaxed text-white/70">{item.desc}</p>
 
           <div className="mt-6 flex items-center justify-between">
@@ -347,7 +358,7 @@ const rightNav = [
     );
   };
 
-  // ===================== PORTL: published content loader (safe fallback) =====================
+  // ===================== PORTL content loader (safe fallback) =====================
   const [portlContent, setPortlContent] = useState<any>(null);
 
   const getDeep = (obj: any, path: string) =>
@@ -384,38 +395,63 @@ const rightNav = [
           muted
           loop
           playsInline
-          preload="auto"
+          preload="metadata"
           aria-hidden="true"
         >
-          <source src="/videos/hero.mp4" type="video/mp4" />
+          <source src={media.heroVideo} type="video/mp4" />
         </motion.video>
         <div className="absolute inset-0 bg-black/60" />
       </div>
 
       <div className="relative z-10">
-        {/* ===================== NAV ===================== */}
-        <header className="relative w-full">
+        {/* ===================== NAV (MOBILE + DESKTOP) ===================== */}
+        <header className="sticky top-0 z-50 w-full">
           <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] bg-[rgba(0,180,255,0.85)] shadow-[0_0_20px_rgba(0,180,255,0.65)]" />
-          <div className="bg-black/50 backdrop-blur-md">
-            <div className="mx-auto max-w-7xl px-6">
-              <div className="relative flex h-[120px] items-center">
-                <div className="hidden md:flex flex-1 items-center justify-evenly">
-                  {leftNav.map((l) => (
-                    <NavLink key={l.href} {...l} />
-                  ))}
+          <div className="bg-black/55 backdrop-blur-md">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6">
+              <div className="relative flex h-[84px] items-center">
+                {/* MOBILE: hamburger */}
+                <div className="flex flex-1 items-center md:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setMobileOpen(true)}
+                    className="inline-flex items-center justify-center rounded-full border border-white/10 bg-black/35 p-3 text-white/85 hover:bg-black/55 transition"
+                    aria-label="Open menu"
+                  >
+                    <Menu className="h-5 w-5" />
+                  </button>
                 </div>
 
+                {/* Center logo */}
                 <div className="absolute left-1/2 -translate-x-1/2">
-                  <Link href="/" aria-label="Go home">
+                  <Link href="/" aria-label="Go home" onClick={() => setMobileOpen(false)}>
                     <Image
                       src="/images/smc-logo.png"
                       alt="Slater Media Company Logo"
-                      width={100}
-                      height={100}
+                      width={84}
+                      height={84}
                       className="object-contain"
                       priority
                     />
                   </Link>
+                </div>
+
+                {/* MOBILE: quick button */}
+                <div className="flex flex-1 items-center justify-end md:hidden">
+                  <Link
+                    href="/services"
+                    onClick={() => setMobileOpen(false)}
+                    className="rounded-full border border-white/10 bg-black/35 px-4 py-2 text-sm font-semibold text-white/85 hover:bg-black/55 transition"
+                  >
+                    Services
+                  </Link>
+                </div>
+
+                {/* DESKTOP */}
+                <div className="hidden md:flex flex-1 items-center justify-evenly">
+                  {leftNav.map((l) => (
+                    <NavLink key={l.href} {...l} />
+                  ))}
                 </div>
 
                 <div className="hidden md:flex flex-1 items-center justify-evenly">
@@ -426,11 +462,57 @@ const rightNav = [
               </div>
             </div>
           </div>
+
+          {/* MOBILE MENU */}
+          {mobileOpen && (
+            <div className="md:hidden">
+              <button
+                aria-label="Close menu"
+                className="fixed inset-0 z-40 bg-black/60"
+                onClick={() => setMobileOpen(false)}
+              />
+              <div className="fixed top-0 left-0 right-0 z-50 mx-auto">
+                <div className="mx-3 mt-3 rounded-3xl border border-white/10 bg-black/75 backdrop-blur-xl shadow-[0_18px_70px_rgba(0,0,0,0.7)] overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
+                    <div className="text-sm font-semibold text-white/85">Menu</div>
+                    <button
+                      type="button"
+                      onClick={() => setMobileOpen(false)}
+                      className="inline-flex items-center justify-center rounded-full border border-white/10 bg-black/35 p-2 text-white/85 hover:bg-black/55 transition"
+                      aria-label="Close menu"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <div className="p-2">
+                    {[...leftNav, ...rightNav].map((l) => (
+                      <Link
+                        key={l.href}
+                        href={l.href}
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center justify-between rounded-2xl px-4 py-4 text-base font-semibold text-white/90 hover:bg-white/5 transition"
+                      >
+                        <span>{l.label}</span>
+                        <span className="text-white/35">→</span>
+                      </Link>
+                    ))}
+                  </div>
+
+                  <div className="p-4 border-t border-white/10">
+                    <div className="text-xs text-white/45 leading-relaxed">
+                      Slater Media Company — The Creatives Express
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </header>
 
         {/* ===================== HERO (CENTERED) ===================== */}
-        <section className="relative min-h-[calc(100vh-120px)] flex items-center">
-          <div className="mx-auto max-w-7xl px-6 w-full">
+        <section className="relative min-h-[calc(100vh-84px)] flex items-center">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 w-full">
             <motion.div
               variants={stagger}
               initial="hidden"
@@ -440,7 +522,7 @@ const rightNav = [
               <motion.h1
                 variants={fadeUp}
                 transition={{ delay: 0.05 }}
-                className="text-4xl md:text-6xl font-semibold leading-[1.05] tracking-tight"
+                className="text-3xl sm:text-4xl md:text-6xl font-semibold leading-[1.05] tracking-tight"
               >
                 {portlText("hero.headline", "The Creatives Express")}
               </motion.h1>
@@ -448,7 +530,7 @@ const rightNav = [
               <motion.h2
                 variants={fadeUp}
                 transition={{ delay: 0.1 }}
-                className="mt-4 text-xl md:text-2xl font-medium tracking-wide text-white/85"
+                className="mt-3 sm:mt-4 text-lg sm:text-xl md:text-2xl font-medium tracking-wide text-white/85"
               >
                 {portlText("hero.subheadline", "Slater Media Company")}
               </motion.h2>
@@ -456,7 +538,7 @@ const rightNav = [
               <motion.p
                 variants={fadeUp}
                 transition={{ delay: 0.15 }}
-                className="mt-6 text-base md:text-lg text-white/70 leading-relaxed"
+                className="mt-5 sm:mt-6 text-base md:text-lg text-white/70 leading-relaxed"
               >
                 {portlText(
                   "hero.body",
@@ -467,15 +549,15 @@ const rightNav = [
               <motion.div
                 variants={fadeUp}
                 transition={{ delay: 0.2 }}
-                className="mt-8 h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                className="mt-7 sm:mt-8 h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent"
               />
             </motion.div>
           </div>
         </section>
 
-        {/* ===================== NEW AT SMC (keep id if you still want this section) ===================== */}
-        <section id="services" className="relative -mt-10 pb-24">
-          <div className="mx-auto max-w-7xl px-6">
+        {/* ===================== NEW AT SMC ===================== */}
+        <section id="services" className="relative -mt-8 sm:-mt-10 pb-20 sm:pb-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <motion.div
               variants={stagger}
               initial="hidden"
@@ -521,6 +603,8 @@ const rightNav = [
     </main>
   );
 }
+
+
 
 
 
