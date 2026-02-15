@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* =========================
+   Root Theme Variables
+========================= */
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -12,6 +15,9 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* =========================
+   Dark Mode
+========================= */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -19,8 +25,50 @@
   }
 }
 
+/* =========================
+   Base Styles
+========================= */
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* =========================
+   iOS Safari Hero Video Fix
+   (Removes ghost play button)
+========================= */
+
+/* Hide default WebKit video controls */
+video::-webkit-media-controls {
+  display: none !important;
+}
+
+video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none;
+}
+
+video::-webkit-media-controls-overlay-play-button {
+  display: none !important;
+}
+
+video::-webkit-media-controls-enclosure {
+  display: none !important;
+}
+
+/* Prevent Safari from treating it like interactive media */
+video {
+  pointer-events: none;
+  object-fit: cover;
+  background: transparent;
+}
+
