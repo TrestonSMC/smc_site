@@ -4,13 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  Code2,
   Megaphone,
   Video,
   HeartHandshake,
   Home,
   ArrowRight,
   CheckCircle2,
+  Lock,
+  Sparkles,
 } from "lucide-react";
 
 export default function ServicesPage() {
@@ -69,59 +70,16 @@ export default function ServicesPage() {
   const divider =
     "my-10 h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent";
 
+  // ✅ Re-ordered to match your flow:
+  // Weddings, Film & Media, Real Estate, Marketing
   const categories = [
-    {
-      slug: "development",
-      title: "Development",
-      icon: Code2,
-      eyebrow: "WEBSITES • APPS",
-      desc:
-        "Fast, clean builds that look premium and perform. From websites to app development.",
-      bullets: [
-        "Website development (Next.js / React)",
-        "App development (iOS / Android)",
-        "Landing pages + conversion flows",
-        "Maintenance, updates, and performance",
-      ],
-      image: "/images/services/development.jpg",
-    },
-    {
-      slug: "marketing",
-      title: "Marketing",
-      icon: Megaphone,
-      eyebrow: "ADS • SEO • STRATEGY",
-      desc:
-        "Campaigns that drive traffic and turn attention into action — with clear reporting.",
-      bullets: [
-        "Google Ads + Search strategy",
-        "Meta ads (IG / FB) + retargeting",
-        "SEO + local visibility boosts",
-        "Monthly reporting + optimization",
-      ],
-      image: "/images/services/marketing.jpg",
-    },
-    {
-      slug: "film-media",
-      title: "Film & Media",
-      icon: Video,
-      eyebrow: "REELS • BRAND • EVENTS",
-      desc:
-        "Cinematic content built for modern attention spans — short-form reels and story-driven edits.",
-      bullets: [
-        "Short-form reels (IG / TikTok)",
-        "Brand videos + promos",
-        "Event coverage + highlight edits",
-        "Editing, color, sound, delivery",
-      ],
-      image: "/images/services/film-media.jpg",
-    },
     {
       slug: "weddings",
       title: "Weddings",
       icon: HeartHandshake,
-      eyebrow: "HIGHLIGHT • CEREMONY",
+      eyebrow: "HIGHLIGHT • CEREMONY • STORY",
       desc:
-        "Wedding films that feel like a movie — clean audio, beautiful pacing, and social-ready cuts.",
+        "Wedding films that feel like a movie — clean audio, beautiful pacing, and moments you’ll replay forever. Plus social-ready cuts for the week-of hype.",
       bullets: [
         "Highlight film + full ceremony",
         "Vows / speeches audio capture",
@@ -131,12 +89,27 @@ export default function ServicesPage() {
       image: "/images/services/weddings.jpg",
     },
     {
+      slug: "film-media",
+      title: "Film & Media",
+      icon: Video,
+      eyebrow: "CINEMATIC • STORY • PRODUCTION",
+      desc:
+        "Cinematic content with real film energy — story-driven edits, brand films, and budget-friendly filmmaking that still looks premium and intentional.",
+      bullets: [
+        "Cinematic brand films + promos",
+        "Short-form reels (IG / TikTok / YT Shorts)",
+        "Event coverage + highlight edits",
+        "Lighting, sound, color, delivery",
+      ],
+      image: "/images/services/film-media.jpg",
+    },
+    {
       slug: "real-estate",
       title: "Real Estate",
       icon: Home,
       eyebrow: "LISTINGS • DRONE • AGENT BRAND",
       desc:
-        "Listing content that sells the vibe — fast turnarounds, crisp visuals, and agent brand consistency.",
+        "Listing content that sells the vibe — fast turnarounds, crisp visuals, and agent brand consistency that makes every post look intentional.",
       bullets: [
         "Listing photo/video packages",
         "Drone footage (where allowed)",
@@ -144,6 +117,21 @@ export default function ServicesPage() {
         "Agent brand content bundles",
       ],
       image: "/images/services/real-estate.jpg",
+    },
+    {
+      slug: "marketing",
+      title: "Marketing",
+      icon: Megaphone,
+      eyebrow: "CONTENT • ADS • SEO • STRATEGY",
+      desc:
+        "Marketing that actually moves — content + paid + SEO working together. We plan it, create it, run it, and report it so you know what’s winning.",
+      bullets: [
+        "Content plan + consistency system",
+        "Google Ads + Search strategy",
+        "Meta ads (IG / FB) + retargeting",
+        "SEO + local visibility boosts",
+      ],
+      image: "/images/services/marketing.jpg",
     },
   ];
 
@@ -217,10 +205,10 @@ export default function ServicesPage() {
                 variants={fadeUp}
                 className="text-4xl md:text-6xl font-semibold leading-[1.05] tracking-tight"
               >
-                Services built to{" "}
-                <span className="text-white/90">create</span>,{" "}
-                <span className="text-white/90">scale</span>, and{" "}
-                <span className="text-white/90">stand out</span>.
+                Built for{" "}
+                <span className="text-white/90">cinema</span>,{" "}
+                <span className="text-white/90">content</span>, and{" "}
+                <span className="text-white/90">growth</span>.
               </motion.h1>
 
               <motion.p
@@ -255,8 +243,8 @@ export default function ServicesPage() {
           </div>
         </section>
 
-        {/* ===================== CARDS (WITH THUMBNAILS) ===================== */}
-        <section className="relative pb-24">
+        {/* ===================== CARDS (VIDEO-FIRST ORDER) ===================== */}
+        <section className="relative pb-16">
           <div className="mx-auto max-w-7xl px-6">
             <motion.div
               variants={stagger}
@@ -305,7 +293,10 @@ export default function ServicesPage() {
 
                       <ul className="mt-5 grid gap-2">
                         {c.bullets.map((b) => (
-                          <li key={b} className="flex items-start gap-2 text-sm text-white/75">
+                          <li
+                            key={b}
+                            className="flex items-start gap-2 text-sm text-white/75"
+                          >
                             <CheckCircle2 className="mt-0.5 h-4 w-4 text-white/70" />
                             <span>{b}</span>
                           </li>
@@ -333,6 +324,84 @@ export default function ServicesPage() {
               })}
             </motion.div>
 
+            {/* ===================== DEV CORNER (SECRET CTA) ===================== */}
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.25 }}
+              className="mt-10"
+            >
+              <div
+                className={
+                  "relative overflow-hidden rounded-3xl bg-black/45 backdrop-blur-md " +
+                  "border border-white/10 shadow-[0_22px_80px_rgba(0,0,0,0.7)]"
+                }
+              >
+                {/* subtle glow */}
+                <div
+                  className="pointer-events-none absolute -inset-px opacity-90"
+                  style={{
+                    background:
+                      "radial-gradient(800px circle at 20% 20%, rgba(0,180,255,0.16), transparent 55%), radial-gradient(700px circle at 80% 0%, rgba(255,255,255,0.08), transparent 52%)",
+                  }}
+                />
+
+                <div className="relative p-7 md:p-10">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                    <div className="max-w-2xl">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-white/75">
+                        <Lock className="h-3.5 w-3.5" />
+                        Hidden Feature
+                      </div>
+
+                      <h2 className="mt-4 text-2xl md:text-3xl font-semibold tracking-tight">
+                        Developer’s Corner
+                      </h2>
+                      <p className="mt-3 text-white/70 leading-relaxed">
+                        For the ones who want the full build: websites, apps, landing
+                        pages, and systems that scale. If you know, you know.
+                      </p>
+
+                      <div className="mt-5 flex flex-wrap gap-2">
+                        {[
+                          "Next.js / React builds",
+                          "iOS + Android apps",
+                          "Maintenance + upgrades",
+                          "Performance + SEO structure",
+                        ].map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/75"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Link
+                        href="/services/development"
+                        className="group rounded-full border border-white/15 bg-white/5 px-7 py-3 text-sm font-semibold text-white/90 hover:bg-white/10 transition inline-flex items-center justify-center gap-2"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        Push Me
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                      </Link>
+                      <Link
+                        href="/#contact"
+                        className="rounded-full border border-white/15 bg-black/40 px-7 py-3 text-sm font-semibold text-white/85 hover:bg-black/60 transition inline-flex items-center justify-center gap-2"
+                      >
+                        Get a quote <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* ===================== BOTTOM CTA ===================== */}
             <div className="mt-12 text-center">
               <div className="text-white/70 text-sm">
                 Not sure what you need? We’ll map it out in one quick call.
@@ -354,5 +423,7 @@ export default function ServicesPage() {
     </main>
   );
 }
+
+
 
 
