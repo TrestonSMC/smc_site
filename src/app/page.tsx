@@ -1,19 +1,22 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function HomePage() {
   const leftNav = [
-    { label: "Services", href: "#services" },
-    { label: "Showroom", href: "#showroom" },
+    // ✅ This now routes to the Services page
+    { label: "Services", href: "/services" },
+    // ✅ Hash links are written as /#section so they work from other pages too
+    { label: "Showroom", href: "/#showroom" },
   ];
 
-  const rightNav = [
-    { label: "About", href: "#about" },
-    { label: "Insider Access", href: "#contact" },
-  ];
+const rightNav = [
+  { label: "About", href: "/#about" },
+  { label: "Insider Access", href: "/insider-access" },
+];
 
   const fadeUp = {
     hidden: { opacity: 0, y: 18 },
@@ -25,14 +28,15 @@ export default function HomePage() {
     visible: { transition: { staggerChildren: 0.1 } },
   };
 
+  // ✅ Smart nav link (supports /routes and /#hash)
   const NavLink = ({ href, label }: { href: string; label: string }) => (
-    <a
+    <Link
       href={href}
       className="group relative px-4 py-3 text-base font-semibold tracking-wide text-white/90 hover:text-white transition"
     >
       {label}
       <span className="pointer-events-none absolute left-1/2 -bottom-1 h-[2px] w-0 -translate-x-1/2 bg-white/90 transition-all duration-300 group-hover:w-full" />
-    </a>
+    </Link>
   );
 
   const cards = {
@@ -343,6 +347,30 @@ export default function HomePage() {
     );
   };
 
+  // ===================== PORTL: published content loader (safe fallback) =====================
+  const [portlContent, setPortlContent] = useState<any>(null);
+
+  const getDeep = (obj: any, path: string) =>
+    path.split(".").reduce((acc: any, k) => (acc ? acc[k] : undefined), obj);
+
+  const portlText = (path: string, fallback: string) => {
+    const v = getDeep(portlContent, path);
+    return typeof v === "string" && v.trim().length ? v : fallback;
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/portl/content", { cache: "no-store" });
+        const data = await res.json();
+        setPortlContent(data?.content || null);
+      } catch {
+        setPortlContent(null);
+      }
+    };
+    load();
+  }, []);
+
   return (
     <main className="relative min-h-screen text-white overflow-hidden bg-transparent">
       {/* ===================== BACKGROUND VIDEO ===================== */}
@@ -378,14 +406,16 @@ export default function HomePage() {
                 </div>
 
                 <div className="absolute left-1/2 -translate-x-1/2">
-                  <Image
-                    src="/images/smc-logo.png"
-                    alt="Slater Media Company Logo"
-                    width={100}
-                    height={100}
-                    className="object-contain"
-                    priority
-                  />
+                  <Link href="/" aria-label="Go home">
+                    <Image
+                      src="/images/smc-logo.png"
+                      alt="Slater Media Company Logo"
+                      width={100}
+                      height={100}
+                      className="object-contain"
+                      priority
+                    />
+                  </Link>
                 </div>
 
                 <div className="hidden md:flex flex-1 items-center justify-evenly">
@@ -399,7 +429,6 @@ export default function HomePage() {
         </header>
 
         {/* ===================== HERO (CENTERED) ===================== */}
-        {/* Reduced bottom gap so NEW AT SMC sits closer */}
         <section className="relative min-h-[calc(100vh-120px)] flex items-center">
           <div className="mx-auto max-w-7xl px-6 w-full">
             <motion.div
@@ -413,7 +442,7 @@ export default function HomePage() {
                 transition={{ delay: 0.05 }}
                 className="text-4xl md:text-6xl font-semibold leading-[1.05] tracking-tight"
               >
-                The Creatives Express
+                {portlText("hero.headline", "The Creatives Express")}
               </motion.h1>
 
               <motion.h2
@@ -421,7 +450,7 @@ export default function HomePage() {
                 transition={{ delay: 0.1 }}
                 className="mt-4 text-xl md:text-2xl font-medium tracking-wide text-white/85"
               >
-                Slater Media Company
+                {portlText("hero.subheadline", "Slater Media Company")}
               </motion.h2>
 
               <motion.p
@@ -429,12 +458,12 @@ export default function HomePage() {
                 transition={{ delay: 0.15 }}
                 className="mt-6 text-base md:text-lg text-white/70 leading-relaxed"
               >
-                We design, develop, and produce high-impact digital experiences. From scalable
-                apps and websites to weddings, real estate, and cinematic media, we help ideas
-                take shape and show up at their best.
+                {portlText(
+                  "hero.body",
+                  "We design, develop, and produce high-impact digital experiences. From scalable apps and websites to weddings, real estate, and cinematic media, we help ideas take shape and show up at their best."
+                )}
               </motion.p>
 
-              {/* tighter divider spacing */}
               <motion.div
                 variants={fadeUp}
                 transition={{ delay: 0.2 }}
@@ -444,8 +473,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ===================== NEW AT SMC ===================== */}
-        {/* Pull section up by using negative margin-top and smaller padding */}
+        {/* ===================== NEW AT SMC (keep id if you still want this section) ===================== */}
         <section id="services" className="relative -mt-10 pb-24">
           <div className="mx-auto max-w-7xl px-6">
             <motion.div
@@ -454,7 +482,10 @@ export default function HomePage() {
               whileInView="visible"
               viewport={{ once: true, amount: 0.2 }}
             >
-              <motion.div variants={fadeUp} className="flex items-end justify-between gap-6 flex-wrap">
+              <motion.div
+                variants={fadeUp}
+                className="flex items-end justify-between gap-6 flex-wrap"
+              >
                 <div>
                   <div className="text-xs font-semibold tracking-[0.22em] text-white/55">
                     NEW AT SMC
@@ -490,6 +521,8 @@ export default function HomePage() {
     </main>
   );
 }
+
+
 
 
 
