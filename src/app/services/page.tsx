@@ -15,16 +15,6 @@ import {
 } from "lucide-react";
 
 export default function ServicesPage() {
-  const leftNav = [
-    { label: "Home", href: "/" },
-    { label: "Showroom", href: "/#showroom" },
-  ];
-
-  const rightNav = [
-    { label: "About", href: "/#about" },
-    { label: "Insider Access", href: "/#contact" },
-  ];
-
   const fadeUp = {
     hidden: { opacity: 0, y: 18 },
     visible: { opacity: 1, y: 0 },
@@ -34,16 +24,6 @@ export default function ServicesPage() {
     hidden: {},
     visible: { transition: { staggerChildren: 0.1 } },
   };
-
-  const NavLink = ({ href, label }: { href: string; label: string }) => (
-    <Link
-      href={href}
-      className="group relative px-4 py-3 text-base font-semibold tracking-wide text-white/90 hover:text-white transition"
-    >
-      {label}
-      <span className="pointer-events-none absolute left-1/2 -bottom-1 h-[2px] w-0 -translate-x-1/2 bg-white/90 transition-all duration-300 group-hover:w-full" />
-    </Link>
-  );
 
   const Dot = () => (
     <span className="h-1.5 w-1.5 rounded-full bg-[rgba(0,180,255,0.92)] shadow-[0_0_12px_rgba(0,180,255,0.6)]" />
@@ -70,8 +50,7 @@ export default function ServicesPage() {
   const divider =
     "my-10 h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent";
 
-  // ✅ Re-ordered to match your flow:
-  // Weddings, Film & Media, Real Estate, Marketing
+  // ✅ Re-ordered: Weddings, Film & Media, Real Estate, Marketing
   const categories = [
     {
       slug: "weddings",
@@ -137,7 +116,9 @@ export default function ServicesPage() {
 
   return (
     <main className="relative min-h-screen text-white overflow-hidden bg-transparent">
-      {/* ===================== BACKGROUND VIDEO (same as Home) ===================== */}
+      {/* ✅ GLOBAL NAV is now handled by app/layout.tsx <SiteHeader /> */}
+
+      {/* ===================== BACKGROUND VIDEO (same vibe) ===================== */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <motion.video
           initial={{ scale: 1.05 }}
@@ -157,41 +138,6 @@ export default function ServicesPage() {
       </div>
 
       <div className="relative z-10">
-        {/* ===================== NAV ===================== */}
-        <header className="relative w-full">
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] bg-[rgba(0,180,255,0.85)] shadow-[0_0_20px_rgba(0,180,255,0.65)]" />
-          <div className="bg-black/50 backdrop-blur-md">
-            <div className="mx-auto max-w-7xl px-6">
-              <div className="relative flex h-[120px] items-center">
-                <div className="hidden md:flex flex-1 items-center justify-evenly">
-                  {leftNav.map((l) => (
-                    <NavLink key={l.href} {...l} />
-                  ))}
-                </div>
-
-                <div className="absolute left-1/2 -translate-x-1/2">
-                  <Link href="/" aria-label="Go home">
-                    <Image
-                      src="/images/smc-logo.png"
-                      alt="Slater Media Company Logo"
-                      width={100}
-                      height={100}
-                      className="object-contain"
-                      priority
-                    />
-                  </Link>
-                </div>
-
-                <div className="hidden md:flex flex-1 items-center justify-evenly">
-                  {rightNav.map((l) => (
-                    <NavLink key={l.href} {...l} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
         {/* ===================== HERO (CLEAN) ===================== */}
         <section className="relative pt-16 pb-8">
           <div className="mx-auto max-w-7xl px-6">
@@ -205,8 +151,7 @@ export default function ServicesPage() {
                 variants={fadeUp}
                 className="text-4xl md:text-6xl font-semibold leading-[1.05] tracking-tight"
               >
-                Built for{" "}
-                <span className="text-white/90">cinema</span>,{" "}
+                Built for <span className="text-white/90">cinema</span>,{" "}
                 <span className="text-white/90">content</span>, and{" "}
                 <span className="text-white/90">growth</span>.
               </motion.h1>
@@ -224,14 +169,14 @@ export default function ServicesPage() {
                 className="mt-8 flex flex-col sm:flex-row gap-3 justify-center"
               >
                 <Link
-                  href="/#contact"
+                  href="/insider-access"
                   className="rounded-full border border-white/15 bg-black/40 px-7 py-3 text-sm font-semibold text-white/90 hover:bg-black/60 transition inline-flex items-center justify-center gap-2"
                 >
                   <Dot />
                   Insider Access <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
-                  href="/#showroom"
+                  href="/showroom"
                   className="rounded-full border border-white/15 bg-transparent px-7 py-3 text-sm font-semibold text-white/85 hover:text-white hover:bg-white/5 transition inline-flex items-center justify-center gap-2"
                 >
                   See work <ArrowRight className="h-4 w-4" />
@@ -332,13 +277,7 @@ export default function ServicesPage() {
               viewport={{ once: true, amount: 0.25 }}
               className="mt-10"
             >
-              <div
-                className={
-                  "relative overflow-hidden rounded-3xl bg-black/45 backdrop-blur-md " +
-                  "border border-white/10 shadow-[0_22px_80px_rgba(0,0,0,0.7)]"
-                }
-              >
-                {/* subtle glow */}
+              <div className="relative overflow-hidden rounded-3xl bg-black/45 backdrop-blur-md border border-white/10 shadow-[0_22px_80px_rgba(0,0,0,0.7)]">
                 <div
                   className="pointer-events-none absolute -inset-px opacity-90"
                   style={{
@@ -423,6 +362,7 @@ export default function ServicesPage() {
     </main>
   );
 }
+
 
 
 
