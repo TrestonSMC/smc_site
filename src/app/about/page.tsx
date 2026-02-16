@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
+import React from "react";
 import {
   ArrowRight,
   Sparkles,
@@ -20,6 +21,33 @@ import {
 
 export default function AboutPage() {
   const reduceMotion = useReducedMotion();
+
+  // ✅ Replace with your Supabase public URLs
+  const HERO_VIDEO_URL =
+    "https://zzfbfgouvouiwhjcncga.supabase.co/storage/v1/object/public/smc-media/About-Hero.mp4";
+  const HERO_VIDEO_POSTER =
+    "https://YOURPROJECT.supabase.co/storage/v1/object/public/YOURBUCKET/about-hero-poster.jpg";
+
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const [soundOn, setSoundOn] = React.useState(false);
+
+  // Keep video muted state in sync with the toggle
+  React.useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = !soundOn;
+  }, [soundOn]);
+
+  // ✅ Ensure video/audio never continues after leaving /about
+  React.useEffect(() => {
+    return () => {
+      const v = videoRef.current;
+      if (!v) return;
+      v.pause();
+      v.currentTime = 0;
+      v.muted = true;
+    };
+  }, []);
 
   const fadeUp = {
     hidden: { opacity: 0, y: 18 },
@@ -171,7 +199,7 @@ export default function AboutPage() {
         <Stars />
       </div>
 
-      {/* HERO (add top padding because global nav is sticky) */}
+      {/* HERO */}
       <section className="relative">
         <div className="mx-auto max-w-6xl px-6 pt-28 pb-12 md:pt-32 md:pb-14">
           <motion.div
@@ -179,8 +207,9 @@ export default function AboutPage() {
             whileInView="visible"
             viewport={{ once: true, amount: 0.35 }}
             variants={stagger}
-            className="grid gap-10 md:grid-cols-12"
+            className="grid items-start gap-10 md:grid-cols-12 md:items-stretch"
           >
+            {/* LEFT */}
             <motion.div variants={fadeUp} className="md:col-span-7">
               <div className="flex flex-wrap gap-3">
                 <Pill>
@@ -243,29 +272,70 @@ export default function AboutPage() {
               </div>
             </motion.div>
 
-            <motion.div variants={fadeUp} className="relative md:col-span-5">
-              <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_24px_90px_rgba(0,0,0,0.45)]">
-                <motion.div
-                  aria-hidden
-                  className="absolute -top-24 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-white/10 blur-3xl"
-                  animate={
-                    reduceMotion
-                      ? {}
-                      : { opacity: [0.45, 0.85, 0.45], scale: [1, 1.06, 1] }
-                  }
-                  transition={
-                    reduceMotion
-                      ? {}
-                      : { duration: 4.8, repeat: Infinity, ease: "easeInOut" }
-                  }
-                />
+            {/* RIGHT (BIG + CONTENT ANCHORED BOTTOM) */}
+            <motion.div
+              variants={fadeUp}
+              className="relative md:col-span-5 md:self-stretch"
+            >
+              <div className="relative flex h-full min-h-[640px] md:min-h-[700px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_24px_90px_rgba(0,0,0,0.45)]">
+                {/* FULL-CARD VIDEO UNDERLAY */}
+                {!reduceMotion ? (
+                  <div className="absolute inset-0">
+                    <video
+                      ref={videoRef}
+                      className="h-full w-full object-cover opacity-75"
+                      src={HERO_VIDEO_URL}
+                      poster={HERO_VIDEO_POSTER}
+                      autoPlay
+                      loop
+                      playsInline
+                      preload="metadata"
+                      muted={!soundOn}
+                    />
+                    <div className="absolute inset-0 bg-neutral-950/50" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.10),transparent_55%)]" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_60%,transparent_25%,rgba(0,0,0,0.55)_75%,rgba(0,0,0,0.85)_100%)]" />
+                  </div>
+                ) : (
+                  <div className="absolute inset-0">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.10),transparent_45%),radial-gradient(circle_at_70%_40%,rgba(0,180,255,0.12),transparent_55%),radial-gradient(circle_at_50%_80%,rgba(179,106,255,0.12),transparent_55%)]" />
+                    <div className="absolute inset-0 bg-neutral-950/35" />
+                  </div>
+                )}
 
-                <div className="relative mx-auto mt-2 grid h-56 w-56 place-items-center rounded-full">
-                  <div className="absolute -inset-10 rounded-full bg-white/5 blur-2xl" />
-                  <div className="absolute inset-0 rounded-full border border-white/25 shadow-[0_0_80px_rgba(255,255,255,0.22)]" />
-                  <div className="absolute inset-6 rounded-full border border-white/15" />
-                  <div className="absolute inset-10 rounded-full border border-white/10" />
-                  <div className="text-center">
+                {/* Outline / glass edge */}
+                <div className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-white/15" />
+
+                {/* Sound toggle */}
+                {!reduceMotion ? (
+                  <div className="absolute right-4 top-4 z-20">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const v = videoRef.current;
+                        if (!v) return;
+
+                        const next = !soundOn;
+                        setSoundOn(next);
+
+                        try {
+                          v.muted = !next;
+                          await v.play();
+                        } catch {
+                          setSoundOn(false);
+                          v.muted = true;
+                        }
+                      }}
+                      className="rounded-full border border-white/15 bg-black/40 px-3 py-1.5 text-xs font-semibold text-white/90 backdrop-blur hover:bg-black/55 transition"
+                    >
+                      {soundOn ? "Sound On" : "Sound Off"}
+                    </button>
+                  </div>
+                ) : null}
+
+                {/* CONTENT */}
+                <div className="relative z-10 flex h-full flex-col">
+                  <div>
                     <div className="text-3xl font-semibold tracking-tight">
                       SMC
                     </div>
@@ -273,45 +343,49 @@ export default function AboutPage() {
                       THE CREATIVES EXPRESS
                     </div>
                   </div>
-                </div>
 
-                <div className="mt-8 space-y-4">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5">
-                        <Target className="h-5 w-5 text-white/85" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold">Mission</div>
-                        <div className="text-sm text-white/70">
-                          Turn local presence into digital dominance.
+                  {/* Anchor stack to bottom */}
+                  <div className="mt-auto space-y-4 pt-8">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5">
+                          <Target className="h-5 w-5 text-white/85" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold">Mission</div>
+                          <div className="text-sm text-white/70">
+                            Slater Media Company exists to help people and
+                            brands bring their ideas to life through cinematic
+                            storytelling, design, and modern technology.
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5">
-                        <Users className="h-5 w-5 text-white/85" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold">Approach</div>
-                        <div className="text-sm text-white/70">
-                          High standards, fast iteration, clean execution.
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5">
+                          <Users className="h-5 w-5 text-white/85" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold">Approach</div>
+                          <div className="text-sm text-white/70">
+                            High standards, fast iteration, clean execution.
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <Link
-                    href="/services"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
-                  >
-                    Explore Services <ArrowRight className="h-4 w-4" />
-                  </Link>
+                    <Link
+                      href="/services"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
+                    >
+                      Explore Services <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
                 </div>
 
+                {/* bottom neon hairline */}
                 <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] opacity-60 bg-[linear-gradient(90deg,rgba(179,106,255,0.95),rgba(0,180,255,0.95),rgba(255,196,92,0.95))] shadow-[0_0_22px_rgba(0,180,255,0.22)]" />
               </div>
             </motion.div>
@@ -557,6 +631,11 @@ export default function AboutPage() {
     </main>
   );
 }
+
+
+
+
+
 
 
 
