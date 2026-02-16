@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Lock, Sparkles } from "lucide-react";
+import { Lock, Sparkles } from "lucide-react";
 
 const PASSWORD = "SMC+users";
 const SESSION_KEY = "smc_insider_unlock";
@@ -74,63 +74,8 @@ export default function InsiderAccessPage() {
       </div>
 
       <div className="relative z-10">
-        {/* SMC-style nav bar */}
-        <header className="relative w-full">
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] bg-[rgba(0,180,255,0.85)] shadow-[0_0_20px_rgba(0,180,255,0.65)]" />
-          <div className="bg-black/50 backdrop-blur-md">
-            <div className="mx-auto max-w-7xl px-6">
-              <div className="relative flex h-[120px] items-center">
-                {/* Left */}
-                <div className="hidden md:flex flex-1 items-center justify-start gap-3">
-                  <Link
-                    href="/"
-                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-black/60 transition"
-                  >
-                    <ChevronRight className="h-4 w-4 rotate-180" />
-                    Back
-                  </Link>
-                </div>
-
-                {/* Center logo */}
-                <div className="absolute left-1/2 -translate-x-1/2">
-                  <Link href="/" aria-label="Go home">
-                    <Image
-                      src="/images/smc-logo.png"
-                      alt="Slater Media Company Logo"
-                      width={100}
-                      height={100}
-                      className="object-contain"
-                      priority
-                    />
-                  </Link>
-                </div>
-
-                {/* Right */}
-                <div className="hidden md:flex flex-1 items-center justify-end gap-3">
-                  {authorized ? (
-                    <button
-                      type="button"
-                      onClick={lock}
-                      className="inline-flex items-center gap-2 rounded-full border border-[rgba(212,175,55,0.35)] bg-black/40 px-5 py-2 text-sm font-semibold text-white/85 hover:bg-black/60 transition shadow-[0_0_18px_rgba(212,175,55,0.12)]"
-                      title="Lock this page"
-                    >
-                      <Lock className="h-4 w-4" />
-                      Lock
-                    </button>
-                  ) : (
-                    <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(212,175,55,0.25)] bg-black/35 px-5 py-2 text-sm font-semibold text-white/70 shadow-[0_0_18px_rgba(212,175,55,0.10)]">
-                      <Lock className="h-4 w-4" />
-                      Private
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Gold private room card */}
-        <section className="px-6 pt-12 pb-20">
+        {/* Private Room Card */}
+        <section className="px-6 pt-32 pb-20">
           <div className="mx-auto max-w-4xl">
             <motion.div
               variants={fadeUp}
@@ -162,8 +107,8 @@ export default function InsiderAccessPage() {
                   <p className="mt-5 text-white/72 text-base md:text-lg leading-relaxed max-w-2xl mx-auto">
                     Access our world
                     <br />
-                  The newest release from Slater Media Company — built to redefine how you experience content.
-                   Get early access to development projects, private SMC drops, curated resources, and more.
+                    The newest release from Slater Media Company — built to redefine how you experience content.
+                    Get early access to development projects, private SMC drops, curated resources, and more.
                     <br />
                     <span className="text-white/85 font-semibold">
                       Entry requires a valid access code.
@@ -219,10 +164,16 @@ export default function InsiderAccessPage() {
 
                   <div className="mt-10 h-px w-full bg-gradient-to-r from-transparent via-[rgba(212,175,55,0.35)] to-transparent" />
 
-                  {/* Placeholder for future insider content */}
                   <div className="mt-10 text-sm text-white/60">
                     Insider content placeholder — build this out next.
                   </div>
+
+                  <button
+                    onClick={lock}
+                    className="mt-8 text-xs text-white/40 hover:text-white transition"
+                  >
+                    Lock Page
+                  </button>
                 </div>
               )}
 
@@ -236,6 +187,7 @@ export default function InsiderAccessPage() {
     </main>
   );
 }
+
 
 
 
