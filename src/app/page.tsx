@@ -4,28 +4,239 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Clock, ArrowRight, Crown, Star } from "lucide-react";
 import { media } from "@/lib/media";
 
-export default function HomePage() {
-  const [isMobile, setIsMobile] = useState(false);
-
+/** ---------- tiny helpers ---------- */
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false);
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 768px)");
-    const apply = () => setIsMobile(mq.matches);
+    const mq = window.matchMedia(query);
+    const apply = () => setMatches(mq.matches);
     apply();
     mq.addEventListener?.("change", apply);
     return () => mq.removeEventListener?.("change", apply);
-  }, []);
+  }, [query]);
+  return matches;
+}
 
-  const fadeUp = isMobile
-    ? { hidden: { opacity: 0 }, visible: { opacity: 1 } }
-    : { hidden: { opacity: 0, y: 18 }, visible: { opacity: 1, y: 0 } };
+function useInView<T extends Element>(options?: IntersectionObserverInit) {
+  const ref = useRef<T | null>(null);
+  const [inView, setInView] = useState(false);
 
-  const stagger = isMobile
-    ? { hidden: {}, visible: {} }
-    : { hidden: {}, visible: { transition: { staggerChildren: 0.08 } } };
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setInView(!!entry?.isIntersecting);
+      },
+      { root: null, threshold: 0.15, rootMargin: "200px 0px", ...options }
+    );
+
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [options]);
+
+  return { ref, inView };
+}
+
+/** ---------- components ---------- */
+function NebulaFull({ isMobile }: { isMobile: boolean }) {
+  return (
+    // fixed background is fine, but mobile GPUs hate huge blur layers.
+    // so: reduce blur + opacity on mobile.
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div className="absolute inset-0 bg-neutral-950" />
+
+      <div className="absolute inset-0 opacity-[0.10] bg-[radial-gradient(circle_at_10%_20%,rgba(255,255,255,0.35),transparent_22%),radial-gradient(circle_at_90%_40%,rgba(255,255,255,0.25),transparent_18%),radial-gradient(circle_at_50%_90%,rgba(255,255,255,0.20),transparent_20%)]" />
+
+      {/* Big glows: keep the vibe, but cheaper on mobile */}
+      <div
+        className={`absolute -top-72 left-[6%] h-[980px] w-[980px] rounded-full bg-[radial-gradient(circle,rgba(179,106,255,0.20),transparent_64%)] ${
+          isMobile ? "blur-2xl opacity-60" : "blur-3xl"
+        }`}
+      />
+      <div
+        className={`absolute -top-64 right-[4%] h-[1020px] w-[1020px] rounded-full bg-[radial-gradient(circle,rgba(0,180,255,0.16),transparent_66%)] ${
+          isMobile ? "blur-2xl opacity-55" : "blur-3xl"
+        }`}
+      />
+      <div
+        className={`absolute -bottom-80 left-[28%] h-[1100px] w-[1100px] rounded-full bg-[radial-gradient(circle,rgba(255,196,92,0.12),transparent_68%)] ${
+          isMobile ? "blur-2xl opacity-55" : "blur-3xl"
+        }`}
+      />
+
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.08),transparent_42%),radial-gradient(circle_at_80%_30%,rgba(255,255,255,0.06),transparent_45%),radial-gradient(circle_at_40%_80%,rgba(255,255,255,0.05),transparent_48%)]" />
+
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_35%,rgba(0,0,0,0.55)_72%,rgba(0,0,0,0.88)_100%)]" />
+    </div>
+  );
+}
+
+function HeroVideoTopOnly({
+  isMobile,
+  heroSrc,
+  posterSrc = "/images/hero-poster.jpg",
+}: {
+  isMobile: boolean;
+  heroSrc: string;
+  posterSrc?: string;
+}) {
+  const vRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    if (isMobile) return;
+    const v = vRef.current;
+    if (!v) return;
+
+    // Try to play when browser is ready (no arbitrary timeout).
+    const tryPlay = async () => {
+      try {
+        v.muted = true;
+        v.defaultMuted = true;
+        v.playsInline = true;
+        await v.play();
+      } catch {
+        // ignore autoplay restrictions; poster still shows
+      }
+    };
+
+    // If it can play, do it immediately. Otherwise, wait once.
+    if (v.readyState >= 2) tryPlay();
+    else v.addEventListener("canplay", tryPlay, { once: true });
+
+    return () => {
+      v.removeEventListener("canplay", tryPlay);
+    };
+  }, [isMobile]);
+
+  return (
+    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+      {/* Always render an instant poster image behind everything */}
+      <Image
+        src={posterSrc}
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover brightness-[0.55] contrast-[1.08] saturate-[1.18]"
+      />
+
+      {/* Desktop-only video layer (loads quietly) */}
+      {!isMobile && (
+        <>
+          <video
+            ref={vRef}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster={posterSrc}
+            aria-hidden="true"
+            tabIndex={-1}
+            disablePictureInPicture
+            controls={false}
+            className="absolute inset-0 h-full w-full object-cover brightness-[0.55] contrast-[1.08] saturate-[1.18] transform-gpu"
+          >
+            <source src={heroSrc} type="video/mp4" />
+          </video>
+          <div className="absolute inset-0 bg-black/35" />
+        </>
+      )}
+
+      {/* Mobile: just keep the overlay vibe, no video cost */}
+      {isMobile && <div className="absolute inset-0 bg-black/55" />}
+
+      <div className="absolute inset-0 opacity-80 bg-[radial-gradient(900px_circle_at_50%_0%,rgba(255,255,255,0.08),transparent_60%)]" />
+    </div>
+  );
+}
+
+function AutoPlayThumbVideo({
+  src,
+  poster,
+  className,
+}: {
+  src: string;
+  poster: string;
+  className?: string;
+}) {
+  const { ref, inView } = useInView<HTMLDivElement>({ threshold: 0.15, rootMargin: "250px 0px" });
+  const vRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const v = vRef.current;
+    if (!v) return;
+
+    if (!inView) {
+      try {
+        v.pause();
+      } catch {}
+      return;
+    }
+
+    // in view -> play (muted inline)
+    const play = async () => {
+      try {
+        v.muted = true;
+        v.defaultMuted = true;
+        v.playsInline = true;
+        await v.play();
+      } catch {
+        // ignore
+      }
+    };
+
+    if (v.readyState >= 2) play();
+    else v.addEventListener("canplay", play, { once: true });
+
+    return () => v.removeEventListener("canplay", play);
+  }, [inView]);
+
+  return (
+    <div ref={ref} className="absolute inset-0">
+      <video
+        ref={vRef}
+        className={className}
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        poster={poster}
+        aria-hidden="true"
+        disablePictureInPicture
+      >
+        <source src={src} type="video/mp4" />
+      </video>
+    </div>
+  );
+}
+
+export default function HomePage() {
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // Mobile should feel instant: minimize motion work.
+  const fadeUp = useMemo(
+    () =>
+      isMobile
+        ? { hidden: { opacity: 1 }, visible: { opacity: 1 } } // no entrance animation on mobile
+        : { hidden: { opacity: 0, y: 18 }, visible: { opacity: 1, y: 0 } },
+    [isMobile]
+  );
+
+  const stagger = useMemo(
+    () =>
+      isMobile
+        ? { hidden: {}, visible: {} } // no stagger on mobile
+        : { hidden: {}, visible: { transition: { staggerChildren: 0.08 } } },
+    [isMobile]
+  );
 
   const cards = {
     featured: {
@@ -76,9 +287,20 @@ export default function HomePage() {
 
   const EdgeGlow = () => (
     <div className="pointer-events-none absolute inset-0 rounded-3xl">
-      <div className="absolute -inset-[14px] rounded-[30px] blur-3xl opacity-45 bg-[radial-gradient(1100px_circle_at_45%_30%,rgba(179,106,255,0.20),transparent_60%)]" />
-      <div className="absolute -inset-[14px] rounded-[30px] blur-3xl opacity-40 bg-[radial-gradient(1100px_circle_at_60%_55%,rgba(0,180,255,0.18),transparent_62%)]" />
-      <div className="absolute -inset-[14px] rounded-[30px] blur-3xl opacity-30 bg-[radial-gradient(1100px_circle_at_40%_75%,rgba(255,196,92,0.12),transparent_64%)]" />
+      {/* On mobile, fewer + slightly cheaper glow layers */}
+      <div
+        className={`absolute -inset-[14px] rounded-[30px] opacity-45 bg-[radial-gradient(1100px_circle_at_45%_30%,rgba(179,106,255,0.20),transparent_60%)] ${
+          isMobile ? "blur-2xl" : "blur-3xl"
+        }`}
+      />
+      <div
+        className={`absolute -inset-[14px] rounded-[30px] opacity-40 bg-[radial-gradient(1100px_circle_at_60%_55%,rgba(0,180,255,0.18),transparent_62%)] ${
+          isMobile ? "blur-2xl" : "blur-3xl"
+        }`}
+      />
+      {!isMobile && (
+        <div className="absolute -inset-[14px] rounded-[30px] blur-3xl opacity-30 bg-[radial-gradient(1100px_circle_at_40%_75%,rgba(255,196,92,0.12),transparent_64%)]" />
+      )}
       <div className="absolute inset-0 rounded-3xl shadow-[0_0_0_1px_rgba(255,255,255,0.10)]" />
     </div>
   );
@@ -94,10 +316,11 @@ export default function HomePage() {
     const fgRef = useRef<HTMLVideoElement | null>(null);
 
     const close = () => {
-      if (fgRef.current) {
+      const v = fgRef.current;
+      if (v) {
         try {
-          fgRef.current.pause();
-          fgRef.current.currentTime = 0;
+          v.pause();
+          v.currentTime = 0;
         } catch {}
       }
       setIsPlaying(false);
@@ -108,13 +331,16 @@ export default function HomePage() {
       setErr(null);
       setIsPlaying(true);
 
+      // Let the video element mount first, then play.
       requestAnimationFrame(async () => {
         try {
-          if (fgRef.current) {
-            fgRef.current.muted = false;
-            fgRef.current.volume = 1;
-            await fgRef.current.play();
-          }
+          const v = fgRef.current;
+          if (!v) return;
+          v.playsInline = true;
+          v.preload = "metadata";
+          v.muted = false;
+          v.volume = 1;
+          await v.play();
         } catch {
           setErr("Couldn’t start video. Confirm URL is public + MP4 is H.264/AAC.");
         }
@@ -133,6 +359,7 @@ export default function HomePage() {
                 src={item.thumb}
                 alt={`${item.title} thumbnail`}
                 fill
+                sizes="(max-width: 768px) 100vw, 896px"
                 className="object-cover scale-[1.02] group-hover:scale-[1.05] transition-transform duration-500"
                 priority
               />
@@ -218,24 +445,34 @@ export default function HomePage() {
                 src={(item as any).mobileThumb || "/images/thumb-smc-app.jpg"}
                 alt={`${item.title} preview`}
                 fill
+                sizes="(max-width: 768px) 100vw, 50vw"
                 className="object-cover"
               />
             ) : (
-              <video
-                className="absolute inset-0 h-full w-full object-cover"
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="auto"
-                aria-hidden="true"
-                disablePictureInPicture
-              >
-                <source src={(item as any).videoThumbSrc} type="video/mp4" />
-              </video>
+              <>
+                {/* Instant poster underneath so there’s never a blank/late frame */}
+                <Image
+                  src={(item as any).mobileThumb || "/images/thumb-smc-app.jpg"}
+                  alt={`${item.title} preview`}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-cover"
+                />
+                <AutoPlayThumbVideo
+                  src={(item as any).videoThumbSrc}
+                  poster={(item as any).mobileThumb || "/images/thumb-smc-app.jpg"}
+                  className="absolute inset-0 h-full w-full object-cover transform-gpu"
+                />
+              </>
             )
           ) : (
-            <Image src={(item as any).thumb} alt={`${item.title} thumbnail`} fill className="object-cover" />
+            <Image
+              src={(item as any).thumb}
+              alt={`${item.title} thumbnail`}
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-cover"
+            />
           )}
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/18 to-black/5" />
@@ -332,22 +569,20 @@ export default function HomePage() {
   };
 
   return (
-    // ✅ bg-transparent so nebula can be seen
     <main className="relative min-h-screen text-white overflow-hidden bg-transparent">
-      {/* ✅ Nebula behind page content (visible because main is transparent) */}
-      <NebulaFull />
+      <NebulaFull isMobile={isMobile} />
 
       <div className="relative z-10">
-        {/* ===================== HERO (video only at top section) ===================== */}
+        {/* ===================== HERO ===================== */}
         <section className="relative overflow-hidden">
           <HeroVideoTopOnly isMobile={isMobile} heroSrc={media.heroVideo} />
 
-          {/* ✅ don’t fade to a solid color (that hides nebula) */}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-black/30" />
 
           <div className="relative z-10 min-h-[calc(82vh-84px)] flex items-center">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 w-full">
-              <motion.div variants={stagger} initial="hidden" animate="visible" className="mx-auto max-w-3xl text-center">
+              {/* Render immediately (no “pop in late” on mobile) */}
+              <motion.div variants={stagger} initial="visible" animate="visible" className="mx-auto max-w-3xl text-center">
                 <motion.h1
                   variants={fadeUp}
                   className="text-3xl sm:text-4xl md:text-6xl font-semibold leading-[1.05] tracking-tight"
@@ -388,7 +623,8 @@ export default function HomePage() {
         {/* ===================== NEW AT SMC ===================== */}
         <section className="relative pb-10 sm:pb-12">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }}>
+            {/* IMPORTANT: no whileInView (that’s what causes “not visible until scroll” bugs) */}
+            <motion.div variants={stagger} initial="visible" animate="visible">
               <motion.div variants={fadeUp} className="flex items-end justify-between gap-6 flex-wrap">
                 <div>
                   <div className="text-xs font-semibold tracking-[0.22em] text-white/60">NEW AT SMC</div>
@@ -415,98 +651,77 @@ export default function HomePage() {
           </div>
         </section>
 
-{/* ===================== INSIDER ACCESS (Multicolor Edge Glow) ===================== */}
-<section className="relative pb-10 sm:pb-12">
-  <div className="mx-auto max-w-7xl px-4 sm:px-6">
-    <div className="relative rounded-3xl">
+        {/* ===================== INSIDER ACCESS ===================== */}
+        <section className="relative pb-10 sm:pb-12">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="relative rounded-3xl">
+              <div
+                className="pointer-events-none absolute -inset-8 rounded-[36px] opacity-75"
+                style={{
+                  background:
+                    "conic-gradient(from 0deg, rgba(179,106,255,0.55), rgba(255,196,92,0.45), rgba(0,220,170,0.35), rgba(120,80,255,0.45), rgba(179,106,255,0.55))",
+                  filter: isMobile ? "blur(18px)" : "blur(24px)",
+                }}
+              />
 
-      {/* 🔥 Multicolor OUTER glow (less blue, more premium blend) */}
-      <div
-        className="pointer-events-none absolute -inset-8 rounded-[36px] blur-2xl opacity-75"
-        style={{
-          background:
-            "conic-gradient(from 0deg, rgba(179,106,255,0.55), rgba(255,196,92,0.45), rgba(0,220,170,0.35), rgba(120,80,255,0.45), rgba(179,106,255,0.55))",
-        }}
-      />
+              <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.06] backdrop-blur-md shadow-[0_26px_120px_rgba(0,0,0,0.55)]">
+                <div className="pointer-events-none absolute inset-0 rounded-3xl shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]" />
 
-      {/* GLASS CARD */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.06] backdrop-blur-md shadow-[0_26px_120px_rgba(0,0,0,0.55)]">
+                <div className="relative p-6 sm:p-8">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                      <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-black/25 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_26px_90px_rgba(0,0,0,0.62)]">
+                        <Crown className="h-5 w-5 text-white/95" />
+                      </div>
 
-        {/* subtle inner highlight */}
-        <div className="pointer-events-none absolute inset-0 rounded-3xl shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]" />
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="text-sm font-semibold text-white/95">Insider Access</div>
 
-        <div className="relative p-6 sm:p-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/20 px-2.5 py-1 text-[10px] font-semibold tracking-[0.18em] text-white/90">
+                            <Star className="h-3.5 w-3.5" />
+                            VIP
+                          </span>
 
-            <div className="flex items-center gap-4">
-              <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-black/25 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_26px_90px_rgba(0,0,0,0.62)]">
-                <Crown className="h-5 w-5 text-white/95" />
-              </div>
+                          <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/20 px-2.5 py-1 text-[10px] font-semibold tracking-[0.18em] text-white/90">
+                            PRIVATE
+                          </span>
+                        </div>
 
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="text-sm font-semibold text-white/95">
-                    Insider Access
+                        <div className="mt-1 text-sm text-white/80 max-w-xl">
+                          Early previews, private drops, and internal tools — for clients who want first access.
+                        </div>
+                      </div>
+                    </div>
+
+                    <Link
+                      href="/insider-access"
+                      className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/25 px-6 py-3 text-sm font-semibold text-white/95 hover:bg-black/40 transition shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+                    >
+                      Join Access <ArrowRight className="h-4 w-4" />
+                    </Link>
                   </div>
 
-                  <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/20 px-2.5 py-1 text-[10px] font-semibold tracking-[0.18em] text-white/90">
-                    <Star className="h-3.5 w-3.5" />
-                    VIP
-                  </span>
-
-                  <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/20 px-2.5 py-1 text-[10px] font-semibold tracking-[0.18em] text-white/90">
-                    PRIVATE
-                  </span>
-                </div>
-
-                <div className="mt-1 text-sm text-white/80 max-w-xl">
-                  Early previews, private drops, and internal tools — for clients who want first access.
+                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[
+                      { t: "First Looks", d: "See new builds + edits before they hit the showroom." },
+                      { t: "Private Drops", d: "Invite-only templates, presets, and internal tools." },
+                      { t: "Priority Replies", d: "Faster turnaround when you’re ready to move." },
+                    ].map((p) => (
+                      <div
+                        key={p.t}
+                        className="rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-md p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_16px_55px_rgba(0,0,0,0.35)]"
+                      >
+                        <div className="text-sm font-semibold text-white/92">{p.t}</div>
+                        <div className="mt-1 text-sm text-white/75 leading-relaxed">{p.d}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-
-            <Link
-              href="/insider-access"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/25 px-6 py-3 text-sm font-semibold text-white/95 hover:bg-black/40 transition shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
-            >
-              Join Access <ArrowRight className="h-4 w-4" />
-            </Link>
           </div>
-
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {[
-              {
-                t: "First Looks",
-                d: "See new builds + edits before they hit the showroom.",
-              },
-              {
-                t: "Private Drops",
-                d: "Invite-only templates, presets, and internal tools.",
-              },
-              {
-                t: "Priority Replies",
-                d: "Faster turnaround when you’re ready to move.",
-              },
-            ].map((p) => (
-              <div
-                key={p.t}
-                className="rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-md p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_16px_55px_rgba(0,0,0,0.35)]"
-              >
-                <div className="text-sm font-semibold text-white/92">
-                  {p.t}
-                </div>
-                <div className="mt-1 text-sm text-white/75 leading-relaxed">
-                  {p.d}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</section>
+        </section>
 
         {/* ===================== CONTACT ===================== */}
         <section id="contact" className="relative pb-16 sm:pb-20">
@@ -613,75 +828,6 @@ export default function HomePage() {
         </footer>
       </div>
     </main>
-  );
-}
-
-function NebulaFull() {
-  return (
-    // ✅ Put nebula at z-0 (NOT -z-10), then content is z-10 above it.
-    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-      <div className="absolute inset-0 bg-neutral-950" />
-
-      <div className="absolute inset-0 opacity-[0.10] bg-[radial-gradient(circle_at_10%_20%,rgba(255,255,255,0.35),transparent_22%),radial-gradient(circle_at_90%_40%,rgba(255,255,255,0.25),transparent_18%),radial-gradient(circle_at_50%_90%,rgba(255,255,255,0.20),transparent_20%)]" />
-
-      <div className="absolute -top-72 left-[6%] h-[980px] w-[980px] rounded-full bg-[radial-gradient(circle,rgba(179,106,255,0.20),transparent_64%)] blur-3xl" />
-      <div className="absolute -top-64 right-[4%] h-[1020px] w-[1020px] rounded-full bg-[radial-gradient(circle,rgba(0,180,255,0.16),transparent_66%)] blur-3xl" />
-      <div className="absolute -bottom-80 left-[28%] h-[1100px] w-[1100px] rounded-full bg-[radial-gradient(circle,rgba(255,196,92,0.12),transparent_68%)] blur-3xl" />
-
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.08),transparent_42%),radial-gradient(circle_at_80%_30%,rgba(255,255,255,0.06),transparent_45%),radial-gradient(circle_at_40%_80%,rgba(255,255,255,0.05),transparent_48%)]" />
-
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_35%,rgba(0,0,0,0.55)_72%,rgba(0,0,0,0.88)_100%)]" />
-    </div>
-  );
-}
-
-function HeroVideoTopOnly({ isMobile, heroSrc }: { isMobile: boolean; heroSrc: string }) {
-  const vRef = useRef<HTMLVideoElement | null>(null);
-
-  useEffect(() => {
-    if (isMobile) return;
-    const v = vRef.current;
-    if (!v) return;
-
-    const t = setTimeout(() => {
-      v.muted = true;
-      v.defaultMuted = true;
-      v.playsInline = true;
-      v.play().catch(() => {});
-    }, 60);
-
-    return () => clearTimeout(t);
-  }, [isMobile]);
-
-  return (
-    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      {!isMobile ? (
-        <>
-          <video
-            ref={vRef}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            poster="/images/hero-poster.jpg"
-            aria-hidden="true"
-            tabIndex={-1}
-            disablePictureInPicture
-            controls={false}
-            className="absolute inset-0 h-full w-full object-cover brightness-[0.55] contrast-[1.08] saturate-[1.18]"
-          >
-            <source src={heroSrc} type="video/mp4" />
-          </video>
-
-          <div className="absolute inset-0 bg-black/35" />
-        </>
-      ) : (
-        <div className="absolute inset-0 bg-black/55" />
-      )}
-
-      <div className="absolute inset-0 opacity-80 bg-[radial-gradient(900px_circle_at_50%_0%,rgba(255,255,255,0.08),transparent_60%)]" />
-    </div>
   );
 }
 
