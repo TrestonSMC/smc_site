@@ -1015,13 +1015,16 @@ function HeroBackground({
     if (!v) return;
 
     const t = setTimeout(() => {
+      // iOS Safari likes these set before play()
       v.muted = true;
-      // playsInline is a prop, but we set it anyway for Safari weirdness
-      (v as any).playsInline = true;
+      v.defaultMuted = true;
+      v.playsInline = true;
+
+      // attempt autoplay
       v.play().catch(() => {
-        // Autoplay may be blocked. Poster will cover it.
+        // Autoplay may be blocked; poster will show
       });
-    }, 50);
+    }, 60);
 
     return () => clearTimeout(t);
   }, []);
@@ -1030,14 +1033,20 @@ function HeroBackground({
     <div className="fixed inset-0 z-0 pointer-events-none">
       <video
         ref={vRef}
-        className="h-full w-full object-cover brightness-[0.72] contrast-[1.05]"
         autoPlay
         muted
         loop
         playsInline
+        // @ts-ignore - iOS Safari attribute
+        webkit-playsinline="true"
         preload={isMobile ? "metadata" : "auto"}
         poster="/images/hero-poster.jpg"
         aria-hidden="true"
+        tabIndex={-1}
+        disablePictureInPicture
+        controls={false}
+        controlsList="nodownload nofullscreen noremoteplayback"
+        className="h-full w-full object-cover brightness-[0.72] contrast-[1.05] pointer-events-none"
       >
         <source src={heroSrc} type="video/mp4" />
       </video>
@@ -1049,6 +1058,8 @@ function HeroBackground({
     </div>
   );
 }
+
+
 
 
 
