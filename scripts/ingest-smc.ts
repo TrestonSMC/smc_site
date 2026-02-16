@@ -11,19 +11,10 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
-const SITE_URL = (process.env.SMC_SITE_URL || "https://slatermediacompany.com").replace(
-  /\/$/,
-  ""
-);
+const SITE_URL = (process.env.SMC_SITE_URL || "https://slatermediacompany.com").replace(/\/$/, "");
 
-// Seed paths so we don’t rely on homepage links (great for SPAs / hash nav)
-const SEED_PATHS = [
-  "/",
-  "/services",
-  "/insider-access",
-  "/#about",
-  "/#showroom",
-];
+// ✅ Seed REAL routes (hash routes don't crawl; they're just anchors on "/")
+const SEED_PATHS = ["/", "/services", "/showroom", "/about", "/insider-access", "/weddings"];
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 
@@ -48,9 +39,7 @@ console.log("ENV CHECK:", {
 });
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !OPENAI_API_KEY) {
-  throw new Error(
-    "Missing env vars. Need SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY."
-  );
+  throw new Error("Missing env vars. Need SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY.");
 }
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -155,16 +144,66 @@ async function fetchHtml(url: string) {
   return await res.text();
 }
 
+/* -------------------- Next.js CSR fallback -------------------- */
+function extractStringsDeep(obj: any, out: string[] = [], depth = 0) {
+  if (!obj || depth > 12) return out;
+
+  if (typeof obj === "string") {
+    const s = obj.trim();
+    // keep “real” strings only
+    if (s.length >= 6 && s.length <= 4000) out.push(s);
+    return out;
+  }
+
+  if (Array.isArray(obj)) {
+    for (const v of obj) extractStringsDeep(v, out, depth + 1);
+    return out;
+  }
+
+  if (typeof obj === "object") {
+    for (const k of Object.keys(obj)) {
+      // skip huge binary-ish fields
+      if (k.toLowerCase().includes("embedding")) continue;
+      extractStringsDeep((obj as any)[k], out, depth + 1);
+    }
+  }
+
+  return out;
+}
+
+function extractNextDataText(html: string) {
+  const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+  if (!m?.[1]) return "";
+  try {
+    const json = JSON.parse(m[1]);
+    const pageProps = json?.props?.pageProps ?? json?.props ?? json;
+    const strs = extractStringsDeep(pageProps);
+    const uniq = Array.from(new Set(strs));
+    return normalizeText(uniq.join(" • "));
+  } catch {
+    return "";
+  }
+}
+
 function extractMainTextAndLinks(html: string, pageUrl: string) {
   const $ = cheerio.load(html);
 
-  $("script, style, nav, footer, header, noscript, iframe").remove();
+  // remove only truly non-content
+  $("script, style, noscript, iframe").remove();
 
   const title = $("title").text().trim() || null;
 
   const main = $("main");
   const raw = main.length ? main.text() : $("body").text();
-  const text = normalizeText(raw);
+  let text = normalizeText(raw);
+
+  // ✅ If DOM text is too short (CSR), fallback to __NEXT_DATA__
+  if (!text || text.length < 300) {
+    const nextDataText = extractNextDataText(html);
+    if (nextDataText && nextDataText.length > text.length) {
+      text = nextDataText;
+    }
+  }
 
   const links = new Set<string>();
   $("a[href]").each((_, el) => {
@@ -190,11 +229,7 @@ function extractMainTextAndLinks(html: string, pageUrl: string) {
   return { title, text, links: [...links] };
 }
 
-async function upsertChunkAndEmbedding(opts: {
-  source: string;
-  title: string | null;
-  content: string;
-}) {
+async function upsertChunkAndEmbedding(opts: { source: string; title: string | null; content: string }) {
   const content_hash = sha1(`${opts.source}::${opts.content}`);
 
   const { data: chunkRow, error: chunkErr } = await supabase
@@ -267,7 +302,7 @@ async function main() {
 
   const seen = new Set<string>();
 
-  // Seed queue with known routes + homepage
+  // Seed queue with known routes
   const queue: string[] = Array.from(
     new Set(SEED_PATHS.map((p) => canonicalize(new URL(p, SITE_URL).toString())).filter(Boolean))
   );
@@ -297,16 +332,10 @@ async function main() {
         ok++;
         if (r.value.skipped) skipped++;
 
-        console.log(
-          `✅ ${r.value.url} (chunks: ${r.value.chunks}${r.value.skipped ? ", skipped" : ""})`
-        );
+        console.log(`✅ ${r.value.url} (chunks: ${r.value.chunks}${r.value.skipped ? ", skipped" : ""})`);
 
         for (const link of r.value.links) {
-          if (
-            !seen.has(link) &&
-            !queue.includes(link) &&
-            seen.size + queue.length < MAX_PAGES * 3
-          ) {
+          if (!seen.has(link) && !queue.includes(link) && seen.size + queue.length < MAX_PAGES * 3) {
             queue.push(link);
           }
         }
@@ -324,6 +353,7 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
 
 
 
