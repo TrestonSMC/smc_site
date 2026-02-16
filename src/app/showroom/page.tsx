@@ -2,25 +2,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { X, Film, Play, Sparkles, ChevronRight } from "lucide-react";
 import type { ShowroomCategory, ShowroomItem, ShowroomSubcategory } from "@/lib/showroom";
 import { showroomItems } from "@/lib/showroom";
 
+/* -------------------- utils -------------------- */
 function cx(...c: Array<string | false | undefined | null>) {
   return c.filter(Boolean).join(" ");
 }
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 18 },
-  visible: { opacity: 1, y: 0 },
-};
-
-const stagger = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.08 } },
-};
 
 function prettySubcat(s: ShowroomSubcategory) {
   switch (s) {
@@ -67,6 +58,18 @@ function accentGradientBySubcat(sub: ShowroomSubcategory) {
   }
 }
 
+/* -------------------- motion (instant on mobile) -------------------- */
+const fadeUp = {
+  hidden: { opacity: 1, y: 0 },
+  visible: { opacity: 1, y: 0 },
+};
+
+const stagger = {
+  hidden: {},
+  visible: {},
+};
+
+/* -------------------- UI bits -------------------- */
 const Pill = ({ children }: { children: React.ReactNode }) => (
   <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80 backdrop-blur">
     {children}
@@ -109,6 +112,38 @@ function Stars({ reduceMotion }: { reduceMotion: boolean }) {
   );
 }
 
+/* -------------------- intersection helper -------------------- */
+function useInView<T extends Element>(options?: IntersectionObserverInit) {
+  const ref = useRef<T | null>(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setInView(!!entry?.isIntersecting);
+      },
+      { root: null, threshold: 0.12, rootMargin: "600px 0px", ...options }
+    );
+
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [options]);
+
+  return { ref, inView };
+}
+
+/* -------------------- performant video tile -------------------- */
+/**
+ * Goals:
+ * - "Show instantly": remove whileInView gating + heavy motion entrances.
+ * - Fast preview: poster immediately + lazy load actual video when tile is near viewport.
+ * - Desktop hover preview: play on hover (only after loaded).
+ * - Mobile: no hover => tap = open modal; still preloads when near viewport for instant modal play.
+ */
 function VideoTile({
   item,
   onOpen,
@@ -120,78 +155,123 @@ function VideoTile({
   size?: "sm" | "md" | "lg";
   priority?: boolean;
 }) {
-  const ref = useRef<HTMLVideoElement | null>(null);
+  const wrap = useInView<HTMLDivElement>({ rootMargin: priority ? "1200px 0px" : "800px 0px" });
+  const vRef = useRef<HTMLVideoElement | null>(null);
 
-  const onEnter = () => {
-    const v = ref.current;
-    if (!v) return;
-    v.currentTime = 0;
-    v.play().catch(() => {});
-  };
+  const [shouldLoad, setShouldLoad] = useState(priority);
+  const [canPlay, setCanPlay] = useState(false);
 
-  const onLeave = () => {
-    const v = ref.current;
+  // lazy-attach src only when near viewport (or priority)
+  useEffect(() => {
+    if (priority) return;
+    if (!wrap.inView) return;
+    setShouldLoad(true);
+  }, [wrap.inView, priority]);
+
+  // mark when the browser can actually play
+  useEffect(() => {
+    const v = vRef.current;
     if (!v) return;
-    v.pause();
-  };
+
+    const onCanPlay = () => setCanPlay(true);
+    v.addEventListener("canplay", onCanPlay);
+    return () => v.removeEventListener("canplay", onCanPlay);
+  }, [shouldLoad]);
+
+  const onEnter = useCallback(() => {
+    const v = vRef.current;
+    if (!v || !canPlay) return;
+    try {
+      v.currentTime = 0;
+      v.play().catch(() => {});
+    } catch {}
+  }, [canPlay]);
+
+  const onLeave = useCallback(() => {
+    const v = vRef.current;
+    if (!v) return;
+    try {
+      v.pause();
+      // free a bit of work on mobile/low-end
+      v.currentTime = 0;
+    } catch {}
+  }, []);
 
   const aspect =
     size === "lg" ? "aspect-[16/9]" : size === "sm" ? "aspect-[16/10]" : "aspect-video";
 
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(item)}
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
-      className={cx(
-        "group relative w-full overflow-hidden rounded-3xl border border-white/10 bg-white/5 text-left backdrop-blur",
-        "transition-all duration-300 hover:-translate-y-1 hover:border-white/20",
-        glowBySubcat(item.subcategory)
-      )}
-      aria-label="Open video"
-    >
-      {/* subtle neon sweep */}
-      <div className="pointer-events-none absolute -inset-24 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
-        <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(179,106,255,0.18),transparent_58%)] blur-2xl" />
-        <div className="absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(0,180,255,0.14),transparent_60%)] blur-2xl" />
-      </div>
-
-      <div className={cx("relative w-full bg-black/35", aspect)}>
-        <video
-          ref={ref}
-          src={item.src}
-          preload={priority ? "auto" : "metadata"}
-          muted
-          playsInline
-          loop
-          className="relative h-full w-full object-contain"
-        />
-
-        {/* overlays */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/18 to-transparent" />
-        <div
-          className={cx(
-            "pointer-events-none absolute inset-0 bg-gradient-to-br",
-            accentGradientBySubcat(item.subcategory)
-          )}
-        />
-
-        {/* badge */}
-        <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3 py-1 text-xs text-white/85 backdrop-blur">
-          <Sparkles className="h-3.5 w-3.5 text-white/70" />
-          {prettySubcat(item.subcategory)}
+    <div ref={wrap.ref} className="w-full">
+      <button
+        type="button"
+        onClick={() => onOpen(item)}
+        onMouseEnter={onEnter}
+        onMouseLeave={onLeave}
+        className={cx(
+          "group relative w-full overflow-hidden rounded-3xl border border-white/10 bg-white/5 text-left backdrop-blur",
+          "transition-all duration-300 hover:-translate-y-1 hover:border-white/20",
+          glowBySubcat(item.subcategory)
+        )}
+        aria-label="Open video"
+      >
+        {/* subtle neon sweep */}
+        <div className="pointer-events-none absolute -inset-24 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+          <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(179,106,255,0.18),transparent_58%)] blur-2xl" />
+          <div className="absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(0,180,255,0.14),transparent_60%)] blur-2xl" />
         </div>
 
-        {/* play */}
-        <div className="absolute bottom-4 right-4 grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-black/45 text-white/85 backdrop-blur transition group-hover:scale-[1.03]">
-          <Play className="h-5 w-5" />
-        </div>
-      </div>
+        <div className={cx("relative w-full bg-black/35", aspect)}>
+          {/* Poster FIRST (instant). If you have posters per item, set item.poster in your data.
+              Otherwise this keeps the tile from looking "empty" while metadata loads. */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.10),transparent_55%)]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-black/5" />
 
-      {/* neon hairline */}
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] opacity-60 bg-[linear-gradient(90deg,rgba(179,106,255,0.95),rgba(0,180,255,0.95),rgba(255,196,92,0.95))] shadow-[0_0_22px_rgba(0,180,255,0.22)]" />
-    </button>
+          {/* Actual video (loads only when near viewport / priority) */}
+          <video
+            ref={vRef}
+            // src only when shouldLoad to avoid network spam + stalls
+            src={shouldLoad ? item.src : undefined}
+            // preload metadata is enough for instant hover play once near viewport
+            preload={priority ? "auto" : shouldLoad ? "metadata" : "none"}
+            muted
+            playsInline
+            loop
+            // object-cover feels faster/cleaner for previews than contain
+            className={cx(
+              "relative h-full w-full object-cover transform-gpu",
+              // when not loaded yet, keep it hidden so the poster bg shows clean
+              shouldLoad ? "opacity-100" : "opacity-0"
+            )}
+            onError={() => {
+              // fail silently; poster/bg stays
+              setCanPlay(false);
+            }}
+          />
+
+          {/* overlays */}
+          <div
+            className={cx(
+              "pointer-events-none absolute inset-0 bg-gradient-to-br",
+              accentGradientBySubcat(item.subcategory)
+            )}
+          />
+
+          {/* badge */}
+          <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3 py-1 text-xs text-white/85 backdrop-blur">
+            <Sparkles className="h-3.5 w-3.5 text-white/70" />
+            {prettySubcat(item.subcategory)}
+          </div>
+
+          {/* play */}
+          <div className="absolute bottom-4 right-4 grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-black/45 text-white/85 backdrop-blur transition group-hover:scale-[1.03]">
+            <Play className="h-5 w-5" />
+          </div>
+        </div>
+
+        {/* neon hairline */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] opacity-60 bg-[linear-gradient(90deg,rgba(179,106,255,0.95),rgba(0,180,255,0.95),rgba(255,196,92,0.95))] shadow-[0_0_22px_rgba(0,180,255,0.22)]" />
+      </button>
+    </div>
   );
 }
 
@@ -212,9 +292,7 @@ function Row({
     <div className="mt-10">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="text-xs font-semibold tracking-widest text-white/60">
-            COLLECTION
-          </div>
+          <div className="text-xs font-semibold tracking-widest text-white/60">COLLECTION</div>
           <div className="mt-2 text-2xl font-semibold tracking-tight">{title}</div>
           <div className="mt-2 text-sm text-white/70">{subtitle}</div>
         </div>
@@ -222,12 +300,12 @@ function Row({
 
       <div className="mt-6 -mx-6 px-6 overflow-x-auto">
         <div className="flex gap-5 pb-2 snap-x snap-mandatory">
-          {items.map((it) => (
+          {items.map((it, idx) => (
             <div
               key={it.id}
               className="w-[320px] sm:w-[360px] md:w-[420px] shrink-0 snap-start"
             >
-              <VideoTile item={it} onOpen={onOpen} size="sm" />
+              <VideoTile item={it} onOpen={onOpen} size="sm" priority={idx < 2} />
             </div>
           ))}
         </div>
@@ -239,11 +317,6 @@ function Row({
 export default function ShowroomPage() {
   const reduceMotion = useReducedMotion();
 
-  // ✅ Video only for now
-  const videoOnlyItems = useMemo(() => {
-    return showroomItems.filter((i) => i.category === ("video" as ShowroomCategory));
-  }, []);
-
   const [openItem, setOpenItem] = useState<ShowroomItem | null>(null);
 
   useEffect(() => {
@@ -254,13 +327,18 @@ export default function ShowroomPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // ✅ Video only for now
+  const videoOnlyItems = useMemo(() => {
+    return showroomItems.filter((i) => i.category === ("video" as ShowroomCategory));
+  }, []);
+
   // Spotlight (first 3 featured; fallback to first 3 video)
   const featuredItems = useMemo(() => {
     const feats = videoOnlyItems.filter((i) => i.subcategory === "featured");
     return (feats.length ? feats : videoOnlyItems).slice(0, 3);
   }, [videoOnlyItems]);
 
-  // Rows (no filter UI; just show what exists)
+  // Rows
   const reelsPicks = useMemo(
     () => videoOnlyItems.filter((i) => i.subcategory === "reels").slice(0, 12),
     [videoOnlyItems]
@@ -289,12 +367,8 @@ export default function ShowroomPage() {
       {/* HERO */}
       <section className="relative">
         <div className="mx-auto max-w-6xl px-6 pt-28 pb-10 md:pt-32">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.35 }}
-            variants={stagger}
-          >
+          {/* INSTANT: no whileInView gating */}
+          <motion.div initial="visible" animate="visible" variants={stagger}>
             <motion.div variants={fadeUp}>
               <div className="flex flex-wrap gap-3">
                 <Pill>
@@ -309,8 +383,7 @@ export default function ShowroomPage() {
               </h1>
 
               <p className="mt-4 max-w-2xl text-white/70">
-                A curated vault of SMC video work — spotlight pieces up top and
-                collections below.
+                A curated vault of SMC video work — spotlight pieces up top and collections below.
               </p>
 
               {/* ✅ Only Explore Services */}
@@ -328,41 +401,32 @@ export default function ShowroomPage() {
             <motion.div variants={fadeUp} className="mt-10">
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_18px_60px_rgba(0,0,0,0.35)]">
                 <div className="flex items-center justify-between">
-                  <div className="text-xs font-semibold tracking-widest text-white/60">
-                    SPOTLIGHT
-                  </div>
-                  <div className="text-xs text-white/60">
-                    Hover to preview • Click to open
-                  </div>
+                  <div className="text-xs font-semibold tracking-widest text-white/60">SPOTLIGHT</div>
+                  <div className="text-xs text-white/60">Hover to preview • Click to open</div>
                 </div>
 
                 <div className="mt-4 grid gap-5 lg:grid-cols-12">
                   {/* big */}
                   <div className="lg:col-span-7">
                     {featuredItems[0] ? (
-                      <VideoTile
-                        item={featuredItems[0]}
-                        onOpen={setOpenItem}
-                        size="lg"
-                        priority
-                      />
+                      <VideoTile item={featuredItems[0]} onOpen={setOpenItem} size="lg" priority />
                     ) : null}
                   </div>
 
                   {/* stacked */}
                   <div className="lg:col-span-5 grid gap-5">
                     {featuredItems[1] ? (
-                      <VideoTile item={featuredItems[1]} onOpen={setOpenItem} size="sm" />
+                      <VideoTile item={featuredItems[1]} onOpen={setOpenItem} size="sm" priority />
                     ) : null}
                     {featuredItems[2] ? (
-                      <VideoTile item={featuredItems[2]} onOpen={setOpenItem} size="sm" />
+                      <VideoTile item={featuredItems[2]} onOpen={setOpenItem} size="sm" priority />
                     ) : null}
                   </div>
                 </div>
               </div>
             </motion.div>
 
-            {/* COLLECTION ROWS (no view all buttons, no filters) */}
+            {/* COLLECTION ROWS */}
             <motion.div variants={fadeUp} className="mt-6">
               <Row
                 title="Reels"
@@ -387,7 +451,7 @@ export default function ShowroomPage() {
         </div>
       </section>
 
-      {/* MODAL (no title/header names) */}
+      {/* MODAL */}
       <AnimatePresence>
         {openItem ? (
           <motion.div
@@ -404,14 +468,12 @@ export default function ShowroomPage() {
                 "relative w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-neutral-950",
                 glowBySubcat(openItem.subcategory)
               )}
-              initial={{ y: 18, opacity: 0, scale: 0.985 }}
+              initial={{ y: 10, opacity: 0, scale: 0.99 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 18, opacity: 0, scale: 0.985 }}
+              exit={{ y: 10, opacity: 0, scale: 0.99 }}
             >
               <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
-                <div className="text-xs text-white/60">
-                  {prettySubcat(openItem.subcategory)}
-                </div>
+                <div className="text-xs text-white/60">{prettySubcat(openItem.subcategory)}</div>
 
                 <button
                   type="button"
@@ -430,6 +492,7 @@ export default function ShowroomPage() {
                     controls
                     autoPlay
                     playsInline
+                    preload="auto"
                     className="h-full w-full max-h-[75vh] object-contain"
                   />
                   <div
@@ -454,9 +517,7 @@ export default function ShowroomPage() {
                 ) : null}
 
                 <div className="mt-6 flex items-center justify-between gap-3">
-                  <div className="text-xs text-white/50">
-                    Tip: hover tiles for preview • press ESC to close
-                  </div>
+                  <div className="text-xs text-white/50">Tip: hover tiles for preview • press ESC to close</div>
                   <Link
                     href="/insider-access"
                     className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white hover:bg-white/10 transition"
@@ -478,6 +539,7 @@ export default function ShowroomPage() {
     </main>
   );
 }
+
 
 
 
