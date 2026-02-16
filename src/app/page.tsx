@@ -74,7 +74,7 @@ function NebulaFull({ isMobile }: { isMobile: boolean }) {
   );
 }
 
-/* -------------------- hero video (mobile tap-to-play) -------------------- */
+/* -------------------- hero video (iOS = poster only) -------------------- */
 function HeroVideoTopOnly({
   isMobile,
   heroSrc,
@@ -89,7 +89,17 @@ function HeroVideoTopOnly({
   const [unmuted, setUnmuted] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Desktop: autoplay muted if possible
+  // iOS detection (Safari + iOS Chrome both use WebKit)
+  const isIOS = useMemo(() => {
+    if (typeof navigator === "undefined") return false;
+    const ua = navigator.userAgent || "";
+    return (
+      /iPad|iPhone|iPod/.test(ua) ||
+      (ua.includes("Mac") && typeof document !== "undefined" && "ontouchend" in document)
+    );
+  }, []);
+
+  // Desktop only: autoplay muted if possible
   useEffect(() => {
     if (isMobile) return;
     const v = vRef.current;
@@ -113,7 +123,7 @@ function HeroVideoTopOnly({
     return () => v.removeEventListener("canplay", tryPlay);
   }, [isMobile]);
 
-  // Mobile: user gesture required -> tap to play (reliable)
+  // Mobile NON-iOS: optional tap-to-play (Android etc.)
   const startMobile = async () => {
     setErr(null);
     setStarted(true);
@@ -128,7 +138,7 @@ function HeroVideoTopOnly({
         v.preload = "auto";
         await v.play();
       } catch {
-        setErr("Tap again — iOS blocked the first attempt.");
+        setErr("Tap again — playback blocked.");
         setStarted(false);
       }
     });
@@ -143,6 +153,9 @@ function HeroVideoTopOnly({
     if (next) v.volume = 1;
   };
 
+  // iOS mobile = poster only: don’t load or show video UI
+  const showVideo = !isMobile || (isMobile && !isIOS);
+
   return (
     <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
       {/* instant poster */}
@@ -155,32 +168,34 @@ function HeroVideoTopOnly({
         className="object-cover brightness-[0.55] contrast-[1.08] saturate-[1.18]"
       />
 
-      {/* video layer */}
-      <video
-        ref={vRef}
-        muted
-        loop
-        playsInline
-        preload={isMobile ? "none" : "metadata"}
-        poster={posterSrc}
-        aria-hidden="true"
-        tabIndex={-1}
-        disablePictureInPicture
-        controls={false}
-        className={`absolute inset-0 h-full w-full object-cover brightness-[0.55] contrast-[1.08] saturate-[1.18] transform-gpu ${
-          isMobile && !started ? "opacity-0" : "opacity-100"
-        }`}
-        onError={() => setErr("Hero video failed to load (check URL/encoding).")}
-      >
-        <source src={heroSrc} type="video/mp4" />
-      </video>
+      {/* video layer (disabled on iOS mobile) */}
+      {showVideo && (
+        <video
+          ref={vRef}
+          muted
+          loop
+          playsInline
+          preload={isMobile ? "none" : "metadata"}
+          poster={posterSrc}
+          aria-hidden="true"
+          tabIndex={-1}
+          disablePictureInPicture
+          controls={false}
+          className={`absolute inset-0 h-full w-full object-cover brightness-[0.55] contrast-[1.08] saturate-[1.18] transform-gpu ${
+            isMobile && !started ? "opacity-0" : "opacity-100"
+          }`}
+          onError={() => setErr("Hero video failed to load (check URL/encoding).")}
+        >
+          <source src={heroSrc} type="video/mp4" />
+        </video>
+      )}
 
       {/* overlays */}
       <div className="absolute inset-0 bg-black/35" />
       <div className="absolute inset-0 opacity-80 bg-[radial-gradient(900px_circle_at_50%_0%,rgba(255,255,255,0.08),transparent_60%)]" />
 
-      {/* mobile controls */}
-      {isMobile && !started && (
+      {/* Mobile controls: NON-iOS only */}
+      {isMobile && !isIOS && !started && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
           <button
             type="button"
@@ -192,7 +207,7 @@ function HeroVideoTopOnly({
         </div>
       )}
 
-      {isMobile && started && (
+      {isMobile && !isIOS && started && (
         <div className="absolute top-4 right-4 pointer-events-auto flex gap-2">
           <button
             type="button"
@@ -204,7 +219,7 @@ function HeroVideoTopOnly({
         </div>
       )}
 
-      {isMobile && err && (
+      {isMobile && !isIOS && err && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none rounded-2xl border border-white/10 bg-black/35 px-4 py-2 text-xs text-white/85">
           {err}
         </div>
@@ -297,7 +312,9 @@ export default function HomePage() {
 
   const stagger = useMemo(
     () =>
-      isMobile ? { hidden: {}, visible: {} } : { hidden: {}, visible: { transition: { staggerChildren: 0.08 } } },
+      isMobile
+        ? { hidden: {}, visible: {} }
+        : { hidden: {}, visible: { transition: { staggerChildren: 0.08 } } },
     [isMobile]
   );
 
@@ -424,7 +441,9 @@ export default function HomePage() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/18 to-black/5" />
 
               <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
-                <div className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight text-white">{item.title}</div>
+                <div className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight text-white">
+                  {item.title}
+                </div>
                 <div className="mt-1 text-sm text-white/75">{item.meta}</div>
               </div>
 
@@ -573,7 +592,13 @@ export default function HomePage() {
   }, []);
 
   // -------------------- form --------------------
-  const [form, setForm] = useState({ name: "", email: "", company: "", message: "", website: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    company: "",
+    message: "",
+    website: "",
+  });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState<null | "ok" | "err">(null);
 
@@ -598,6 +623,7 @@ export default function HomePage() {
           message: form.message,
         }),
       });
+
       if (!res.ok) throw new Error("bad status");
       setSent("ok");
       setForm({ name: "", email: "", company: "", message: "", website: "" });
@@ -621,7 +647,12 @@ export default function HomePage() {
 
           <div className="relative z-10 min-h-[calc(82vh-84px)] flex items-center">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 w-full">
-              <motion.div variants={stagger} initial="visible" animate="visible" className="mx-auto max-w-3xl text-center">
+              <motion.div
+                variants={stagger}
+                initial="visible"
+                animate="visible"
+                className="mx-auto max-w-3xl text-center"
+              >
                 <motion.h1
                   variants={fadeUp}
                   className="text-3xl sm:text-4xl md:text-6xl font-semibold leading-[1.05] tracking-tight"
@@ -742,16 +773,27 @@ export default function HomePage() {
 
                   <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
-                      { t: "First Looks", d: "See new builds + edits before they hit the showroom." },
-                      { t: "Private Drops", d: "Invite-only templates, presets, and internal tools." },
-                      { t: "Priority Replies", d: "Faster turnaround when you’re ready to move." },
+                      {
+                        t: "First Looks",
+                        d: "See new builds + edits before they hit the showroom.",
+                      },
+                      {
+                        t: "Private Drops",
+                        d: "Invite-only templates, presets, and internal tools.",
+                      },
+                      {
+                        t: "Priority Replies",
+                        d: "Faster turnaround when you’re ready to move.",
+                      },
                     ].map((p) => (
                       <div
                         key={p.t}
                         className="rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-md p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_16px_55px_rgba(0,0,0,0.35)]"
                       >
                         <div className="text-sm font-semibold text-white/92">{p.t}</div>
-                        <div className="mt-1 text-sm text-white/75 leading-relaxed">{p.d}</div>
+                        <div className="mt-1 text-sm text-white/75 leading-relaxed">
+                          {p.d}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -772,7 +814,9 @@ export default function HomePage() {
                 <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
                   <div>
                     <div className="text-xs font-semibold tracking-[0.22em] text-white/60">CONTACT</div>
-                    <h3 className="mt-3 text-2xl md:text-4xl font-semibold tracking-tight">Let’s build something clean.</h3>
+                    <h3 className="mt-3 text-2xl md:text-4xl font-semibold tracking-tight">
+                      Let’s build something clean.
+                    </h3>
                     <p className="mt-3 max-w-3xl text-white/75 leading-relaxed">
                       Websites, apps, content, brand — send the details and we’ll reply with next steps.
                     </p>
@@ -846,8 +890,12 @@ export default function HomePage() {
                       <ArrowRight className="h-4 w-4" />
                     </button>
 
-                    {sent === "ok" && <div className="text-sm text-white/80">Received — we’ll hit you back soon.</div>}
-                    {sent === "err" && <div className="text-sm text-white/80">Didn’t send — try again in a minute.</div>}
+                    {sent === "ok" && (
+                      <div className="text-sm text-white/80">Received — we’ll hit you back soon.</div>
+                    )}
+                    {sent === "err" && (
+                      <div className="text-sm text-white/80">Didn’t send — try again in a minute.</div>
+                    )}
                   </div>
                 </form>
 
@@ -866,6 +914,7 @@ export default function HomePage() {
     </main>
   );
 }
+
 
 
 
