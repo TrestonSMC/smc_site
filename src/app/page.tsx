@@ -1,4 +1,4 @@
-// app/page.tsx
+// src/app/page.tsx
 "use client";
 
 import Image from "next/image";
@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Clock, ArrowRight, Crown, Star } from "lucide-react";
 import { media } from "@/lib/media";
 
-/** ---------- tiny helpers ---------- */
+/* -------------------- hooks -------------------- */
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState(false);
   useEffect(() => {
@@ -34,7 +34,7 @@ function useInView<T extends Element>(options?: IntersectionObserverInit) {
         const entry = entries[0];
         setInView(!!entry?.isIntersecting);
       },
-      { root: null, threshold: 0.15, rootMargin: "200px 0px", ...options }
+      { root: null, threshold: 0.15, rootMargin: "250px 0px", ...options }
     );
 
     obs.observe(el);
@@ -44,17 +44,14 @@ function useInView<T extends Element>(options?: IntersectionObserverInit) {
   return { ref, inView };
 }
 
-/** ---------- components ---------- */
+/* -------------------- background -------------------- */
 function NebulaFull({ isMobile }: { isMobile: boolean }) {
   return (
-    // fixed background is fine, but mobile GPUs hate huge blur layers.
-    // so: reduce blur + opacity on mobile.
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       <div className="absolute inset-0 bg-neutral-950" />
 
       <div className="absolute inset-0 opacity-[0.10] bg-[radial-gradient(circle_at_10%_20%,rgba(255,255,255,0.35),transparent_22%),radial-gradient(circle_at_90%_40%,rgba(255,255,255,0.25),transparent_18%),radial-gradient(circle_at_50%_90%,rgba(255,255,255,0.20),transparent_20%)]" />
 
-      {/* Big glows: keep the vibe, but cheaper on mobile */}
       <div
         className={`absolute -top-72 left-[6%] h-[980px] w-[980px] rounded-full bg-[radial-gradient(circle,rgba(179,106,255,0.20),transparent_64%)] ${
           isMobile ? "blur-2xl opacity-60" : "blur-3xl"
@@ -72,12 +69,12 @@ function NebulaFull({ isMobile }: { isMobile: boolean }) {
       />
 
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.08),transparent_42%),radial-gradient(circle_at_80%_30%,rgba(255,255,255,0.06),transparent_45%),radial-gradient(circle_at_40%_80%,rgba(255,255,255,0.05),transparent_48%)]" />
-
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_35%,rgba(0,0,0,0.55)_72%,rgba(0,0,0,0.88)_100%)]" />
     </div>
   );
 }
 
+/* -------------------- hero video (mobile tap-to-play) -------------------- */
 function HeroVideoTopOnly({
   isMobile,
   heroSrc,
@@ -88,36 +85,67 @@ function HeroVideoTopOnly({
   posterSrc?: string;
 }) {
   const vRef = useRef<HTMLVideoElement | null>(null);
+  const [started, setStarted] = useState(false);
+  const [unmuted, setUnmuted] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
+  // Desktop: autoplay muted if possible
   useEffect(() => {
     if (isMobile) return;
     const v = vRef.current;
     if (!v) return;
 
-    // Try to play when browser is ready (no arbitrary timeout).
     const tryPlay = async () => {
       try {
         v.muted = true;
         v.defaultMuted = true;
         v.playsInline = true;
         await v.play();
+        setStarted(true);
       } catch {
-        // ignore autoplay restrictions; poster still shows
+        // poster still shows, no big deal
       }
     };
 
-    // If it can play, do it immediately. Otherwise, wait once.
     if (v.readyState >= 2) tryPlay();
     else v.addEventListener("canplay", tryPlay, { once: true });
 
-    return () => {
-      v.removeEventListener("canplay", tryPlay);
-    };
+    return () => v.removeEventListener("canplay", tryPlay);
   }, [isMobile]);
+
+  // Mobile: user gesture required -> tap to play (reliable)
+  const startMobile = async () => {
+    setErr(null);
+    setStarted(true);
+
+    requestAnimationFrame(async () => {
+      try {
+        const v = vRef.current;
+        if (!v) return;
+        v.playsInline = true;
+        v.muted = true;
+        v.defaultMuted = true;
+        v.preload = "auto";
+        await v.play();
+      } catch {
+        setErr("Tap again — iOS blocked the first attempt.");
+        setStarted(false);
+      }
+    });
+  };
+
+  const toggleMute = () => {
+    const v = vRef.current;
+    if (!v) return;
+    const next = !unmuted;
+    setUnmuted(next);
+    v.muted = !next;
+    if (next) v.volume = 1;
+  };
 
   return (
     <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      {/* Always render an instant poster image behind everything */}
+      {/* instant poster */}
       <Image
         src={posterSrc}
         alt=""
@@ -127,47 +155,75 @@ function HeroVideoTopOnly({
         className="object-cover brightness-[0.55] contrast-[1.08] saturate-[1.18]"
       />
 
-      {/* Desktop-only video layer (loads quietly) */}
-      {!isMobile && (
-        <>
-          <video
-            ref={vRef}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            poster={posterSrc}
-            aria-hidden="true"
-            tabIndex={-1}
-            disablePictureInPicture
-            controls={false}
-            className="absolute inset-0 h-full w-full object-cover brightness-[0.55] contrast-[1.08] saturate-[1.18] transform-gpu"
+      {/* video layer */}
+      <video
+        ref={vRef}
+        muted
+        loop
+        playsInline
+        preload={isMobile ? "none" : "metadata"}
+        poster={posterSrc}
+        aria-hidden="true"
+        tabIndex={-1}
+        disablePictureInPicture
+        controls={false}
+        className={`absolute inset-0 h-full w-full object-cover brightness-[0.55] contrast-[1.08] saturate-[1.18] transform-gpu ${
+          isMobile && !started ? "opacity-0" : "opacity-100"
+        }`}
+        onError={() => setErr("Hero video failed to load (check URL/encoding).")}
+      >
+        <source src={heroSrc} type="video/mp4" />
+      </video>
+
+      {/* overlays */}
+      <div className="absolute inset-0 bg-black/35" />
+      <div className="absolute inset-0 opacity-80 bg-[radial-gradient(900px_circle_at_50%_0%,rgba(255,255,255,0.08),transparent_60%)]" />
+
+      {/* mobile controls */}
+      {isMobile && !started && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
+          <button
+            type="button"
+            onClick={startMobile}
+            className="rounded-full border border-white/15 bg-black/35 px-7 py-3 text-sm font-semibold text-white/95 hover:bg-black/50 transition shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_18px_60px_rgba(0,0,0,0.55)]"
           >
-            <source src={heroSrc} type="video/mp4" />
-          </video>
-          <div className="absolute inset-0 bg-black/35" />
-        </>
+            ▶ Play Hero
+          </button>
+        </div>
       )}
 
-      {/* Mobile: just keep the overlay vibe, no video cost */}
-      {isMobile && <div className="absolute inset-0 bg-black/55" />}
+      {isMobile && started && (
+        <div className="absolute top-4 right-4 pointer-events-auto flex gap-2">
+          <button
+            type="button"
+            onClick={toggleMute}
+            className="rounded-full border border-white/15 bg-black/35 px-4 py-2 text-xs font-semibold text-white/90 hover:bg-black/55 transition"
+          >
+            {unmuted ? "Mute" : "Sound"}
+          </button>
+        </div>
+      )}
 
-      <div className="absolute inset-0 opacity-80 bg-[radial-gradient(900px_circle_at_50%_0%,rgba(255,255,255,0.08),transparent_60%)]" />
+      {isMobile && err && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none rounded-2xl border border-white/10 bg-black/35 px-4 py-2 text-xs text-white/85">
+          {err}
+        </div>
+      )}
     </div>
   );
 }
 
-function AutoPlayThumbVideo({
+/* -------------------- autoplay preview (non-iOS only, only when visible) -------------------- */
+function AutoPlayPreview({
   src,
   poster,
   className,
 }: {
   src: string;
   poster: string;
-  className?: string;
+  className: string;
 }) {
-  const { ref, inView } = useInView<HTMLDivElement>({ threshold: 0.15, rootMargin: "250px 0px" });
+  const { ref, inView } = useInView<HTMLDivElement>();
   const vRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -181,7 +237,6 @@ function AutoPlayThumbVideo({
       return;
     }
 
-    // in view -> play (muted inline)
     const play = async () => {
       try {
         v.muted = true;
@@ -218,23 +273,31 @@ function AutoPlayThumbVideo({
   );
 }
 
+/* -------------------- page -------------------- */
 export default function HomePage() {
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  // Mobile should feel instant: minimize motion work.
+  const isIOS = useMemo(() => {
+    if (typeof navigator === "undefined") return false;
+    const ua = navigator.userAgent || "";
+    const iOS =
+      /iPad|iPhone|iPod/.test(ua) ||
+      (ua.includes("Mac") && typeof document !== "undefined" && "ontouchend" in document);
+    return iOS;
+  }, []);
+
+  // Mobile should feel instant: no entrance animations
   const fadeUp = useMemo(
     () =>
       isMobile
-        ? { hidden: { opacity: 1 }, visible: { opacity: 1 } } // no entrance animation on mobile
+        ? { hidden: { opacity: 1 }, visible: { opacity: 1 } }
         : { hidden: { opacity: 0, y: 18 }, visible: { opacity: 1, y: 0 } },
     [isMobile]
   );
 
   const stagger = useMemo(
     () =>
-      isMobile
-        ? { hidden: {}, visible: {} } // no stagger on mobile
-        : { hidden: {}, visible: { transition: { staggerChildren: 0.08 } } },
+      isMobile ? { hidden: {}, visible: {} } : { hidden: {}, visible: { transition: { staggerChildren: 0.08 } } },
     [isMobile]
   );
 
@@ -242,8 +305,7 @@ export default function HomePage() {
     featured: {
       eyebrow: "NEW AT SMC",
       title: "Featured Client Video",
-      desc:
-        "A featured cut that shows the standard — story, pacing, and premium edits you can preview right here.",
+      desc: "A featured cut that shows the standard — story, pacing, and premium edits you can preview right here.",
       meta: "Tap to play • Sound on",
       videoSrc: media.featuredClient,
       thumb: "/images/thumb-featured-video.jpg",
@@ -275,7 +337,6 @@ export default function HomePage() {
     ],
   };
 
-  // ===================== CARD SYSTEM =====================
   const ring =
     "border border-white/12 shadow-[0_18px_75px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.08)]";
 
@@ -287,7 +348,6 @@ export default function HomePage() {
 
   const EdgeGlow = () => (
     <div className="pointer-events-none absolute inset-0 rounded-3xl">
-      {/* On mobile, fewer + slightly cheaper glow layers */}
       <div
         className={`absolute -inset-[14px] rounded-[30px] opacity-45 bg-[radial-gradient(1100px_circle_at_45%_30%,rgba(179,106,255,0.20),transparent_60%)] ${
           isMobile ? "blur-2xl" : "blur-3xl"
@@ -309,7 +369,6 @@ export default function HomePage() {
     <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] opacity-70 bg-[linear-gradient(90deg,rgba(179,106,255,0.95),rgba(0,180,255,0.95),rgba(255,196,92,0.95))] shadow-[0_0_22px_rgba(0,180,255,0.22)]" />
   );
 
-  // ===================== FEATURED =====================
   const FeaturedCard = ({ item }: { item: typeof cards.featured }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [err, setErr] = useState<string | null>(null);
@@ -331,7 +390,6 @@ export default function HomePage() {
       setErr(null);
       setIsPlaying(true);
 
-      // Let the video element mount first, then play.
       requestAnimationFrame(async () => {
         try {
           const v = fgRef.current;
@@ -366,9 +424,7 @@ export default function HomePage() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/18 to-black/5" />
 
               <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
-                <div className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight text-white">
-                  {item.title}
-                </div>
+                <div className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight text-white">{item.title}</div>
                 <div className="mt-1 text-sm text-white/75">{item.meta}</div>
               </div>
 
@@ -402,7 +458,6 @@ export default function HomePage() {
                   <span className="rounded-full border border-white/10 bg-black/35 px-3 py-1 text-[11px] font-semibold text-white/85">
                     NOW PLAYING
                   </span>
-
                   <button
                     type="button"
                     onClick={close}
@@ -432,6 +487,7 @@ export default function HomePage() {
 
   const CompactCard = ({ item }: { item: (typeof cards.grid)[number] }) => {
     const isVideoThumbLink = item.kind === "videoThumbLink";
+    const poster = (item as any).mobileThumb || "/images/thumb-smc-app.jpg";
 
     return (
       <motion.div variants={fadeUp} className={cardShell}>
@@ -440,31 +496,25 @@ export default function HomePage() {
 
         <div className="relative aspect-[16/10] w-full overflow-hidden">
           {isVideoThumbLink ? (
-            isMobile ? (
+            <>
+              {/* ALWAYS poster-first (instant, reliable) */}
               <Image
-                src={(item as any).mobileThumb || "/images/thumb-smc-app.jpg"}
+                src={poster}
                 alt={`${item.title} preview`}
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"
                 className="object-cover"
               />
-            ) : (
-              <>
-                {/* Instant poster underneath so there’s never a blank/late frame */}
-                <Image
-                  src={(item as any).mobileThumb || "/images/thumb-smc-app.jpg"}
-                  alt={`${item.title} preview`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  className="object-cover"
-                />
-                <AutoPlayThumbVideo
+
+              {/* Play preview only on NON-iOS and only when NOT mobile */}
+              {!isMobile && !isIOS && (
+                <AutoPlayPreview
                   src={(item as any).videoThumbSrc}
-                  poster={(item as any).mobileThumb || "/images/thumb-smc-app.jpg"}
+                  poster={poster}
                   className="absolute inset-0 h-full w-full object-cover transform-gpu"
                 />
-              </>
-            )
+              )}
+            </>
           ) : (
             <Image
               src={(item as any).thumb}
@@ -501,12 +551,9 @@ export default function HomePage() {
     );
   };
 
-  // ===================== PORTL content loader =====================
+  // -------------------- portl content --------------------
   const [portlContent, setPortlContent] = useState<any>(null);
-
-  const getDeep = (obj: any, path: string) =>
-    path.split(".").reduce((acc: any, k) => (acc ? acc[k] : undefined), obj);
-
+  const getDeep = (obj: any, path: string) => path.split(".").reduce((acc: any, k) => (acc ? acc[k] : undefined), obj);
   const portlText = (path: string, fallback: string) => {
     const v = getDeep(portlContent, path);
     return typeof v === "string" && v.trim().length ? v : fallback;
@@ -525,14 +572,8 @@ export default function HomePage() {
     load();
   }, []);
 
-  // ===================== FORM =====================
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    company: "",
-    message: "",
-    website: "",
-  });
+  // -------------------- form --------------------
+  const [form, setForm] = useState({ name: "", email: "", company: "", message: "", website: "" });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState<null | "ok" | "err">(null);
 
@@ -557,7 +598,6 @@ export default function HomePage() {
           message: form.message,
         }),
       });
-
       if (!res.ok) throw new Error("bad status");
       setSent("ok");
       setForm({ name: "", email: "", company: "", message: "", website: "" });
@@ -573,7 +613,7 @@ export default function HomePage() {
       <NebulaFull isMobile={isMobile} />
 
       <div className="relative z-10">
-        {/* ===================== HERO ===================== */}
+        {/* HERO */}
         <section className="relative overflow-hidden">
           <HeroVideoTopOnly isMobile={isMobile} heroSrc={media.heroVideo} />
 
@@ -581,7 +621,6 @@ export default function HomePage() {
 
           <div className="relative z-10 min-h-[calc(82vh-84px)] flex items-center">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 w-full">
-              {/* Render immediately (no “pop in late” on mobile) */}
               <motion.div variants={stagger} initial="visible" animate="visible" className="mx-auto max-w-3xl text-center">
                 <motion.h1
                   variants={fadeUp}
@@ -620,10 +659,9 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ===================== NEW AT SMC ===================== */}
+        {/* NEW AT SMC */}
         <section className="relative pb-10 sm:pb-12">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            {/* IMPORTANT: no whileInView (that’s what causes “not visible until scroll” bugs) */}
             <motion.div variants={stagger} initial="visible" animate="visible">
               <motion.div variants={fadeUp} className="flex items-end justify-between gap-6 flex-wrap">
                 <div>
@@ -651,7 +689,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ===================== INSIDER ACCESS ===================== */}
+        {/* INSIDER ACCESS */}
         <section className="relative pb-10 sm:pb-12">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <div className="relative rounded-3xl">
@@ -723,7 +761,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ===================== CONTACT ===================== */}
+        {/* CONTACT */}
         <section id="contact" className="relative pb-16 sm:pb-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <div className={`${cardShell} relative`}>
@@ -734,9 +772,7 @@ export default function HomePage() {
                 <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
                   <div>
                     <div className="text-xs font-semibold tracking-[0.22em] text-white/60">CONTACT</div>
-                    <h3 className="mt-3 text-2xl md:text-4xl font-semibold tracking-tight">
-                      Let’s build something clean.
-                    </h3>
+                    <h3 className="mt-3 text-2xl md:text-4xl font-semibold tracking-tight">Let’s build something clean.</h3>
                     <p className="mt-3 max-w-3xl text-white/75 leading-relaxed">
                       Websites, apps, content, brand — send the details and we’ll reply with next steps.
                     </p>
@@ -830,6 +866,7 @@ export default function HomePage() {
     </main>
   );
 }
+
 
 
 
