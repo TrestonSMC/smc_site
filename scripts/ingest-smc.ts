@@ -13,24 +13,33 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
 const SITE_URL = (process.env.SMC_SITE_URL || "https://slatermediacompany.com").replace(/\/$/, "");
 
-// ✅ Seed REAL routes (hash routes don't crawl; they're just anchors on "/")
-const SEED_PATHS = ["/", "/services", "/showroom", "/about", "/insider-access", "/weddings"];
+// ✅ Seed REAL routes
+const SEED_PATHS = [
+  "/",
+  "/services",
+  "/services/development",
+  "/services/marketing",
+  "/services/film-media",
+  "/services/real-estate",
+  "/showroom",
+  "/about",
+  "/insider-access",
+  "/weddings",
+];
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 
-// Tuning knobs
 const CONCURRENCY = Number(process.env.SMC_INGEST_CONCURRENCY || 4);
 const MAX_PAGES = Number(process.env.SMC_INGEST_MAX_PAGES || 200);
 
-// chunk sizes
 const CHUNK_CHAR_LEN = 1800;
 const CHUNK_OVERLAP = 250;
 
-// Cap how many chunks we embed per page (prevents runaway cost)
 const MAX_CHUNKS_PER_PAGE = Number(process.env.SMC_INGEST_MAX_CHUNKS_PER_PAGE || 30);
-
-// Simple rate-limit / backoff for OpenAI 429s
 const OPENAI_MAX_RETRIES = Number(process.env.SMC_OPENAI_MAX_RETRIES || 6);
+
+const MIN_PAGE_TEXT_LEN = Number(process.env.SMC_INGEST_MIN_PAGE_TEXT_LEN || 120);
+const MIN_CHUNK_LEN = Number(process.env.SMC_INGEST_MIN_CHUNK_LEN || 120);
 
 console.log("ENV CHECK:", {
   hasSupabaseUrl: !!SUPABASE_URL,
@@ -44,7 +53,6 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !OPENAI_API_KEY) {
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-// Force headers to match the working REST test
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   global: {
     headers: {
@@ -81,7 +89,6 @@ function shouldSkipUrl(u: string) {
   if (u.startsWith("mailto:") || u.startsWith("tel:")) return true;
   if (u.includes("/api/")) return true;
 
-  // Skip common non-content routes
   if (u.includes("/_next/")) return true;
   if (u.includes("/favicon")) return true;
   if (u.includes("/robots.txt")) return true;
@@ -133,9 +140,7 @@ async function fetchHtml(url: string) {
     headers: { "User-Agent": "SMC-KB-Crawler/1.0" },
   });
 
-  // Treat missing pages as a normal skip (not a hard failure)
   if (res.status === 404) return null;
-
   if (!res.ok) throw new Error(`Fetch failed ${res.status} for ${url}`);
 
   const ct = res.headers.get("content-type") || "";
@@ -144,30 +149,42 @@ async function fetchHtml(url: string) {
   return await res.text();
 }
 
-/* -------------------- Next.js CSR fallback -------------------- */
+/* -------------------- Next.js data helpers -------------------- */
+let NEXT_BUILD_ID: string | null = null;
+
+function extractNextBuildId(html: string) {
+  if (NEXT_BUILD_ID) return NEXT_BUILD_ID;
+  const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+  if (!m?.[1]) return null;
+  try {
+    const json = JSON.parse(m[1]);
+    const buildId = json?.buildId;
+    if (typeof buildId === "string" && buildId.length) {
+      NEXT_BUILD_ID = buildId;
+      return buildId;
+    }
+  } catch {}
+  return null;
+}
+
 function extractStringsDeep(obj: any, out: string[] = [], depth = 0) {
-  if (!obj || depth > 12) return out;
+  if (!obj || depth > 14) return out;
 
   if (typeof obj === "string") {
     const s = obj.trim();
-    // keep “real” strings only
-    if (s.length >= 6 && s.length <= 4000) out.push(s);
+    if (s.length >= 6 && s.length <= 6000) out.push(s);
     return out;
   }
-
   if (Array.isArray(obj)) {
     for (const v of obj) extractStringsDeep(v, out, depth + 1);
     return out;
   }
-
   if (typeof obj === "object") {
     for (const k of Object.keys(obj)) {
-      // skip huge binary-ish fields
       if (k.toLowerCase().includes("embedding")) continue;
       extractStringsDeep((obj as any)[k], out, depth + 1);
     }
   }
-
   return out;
 }
 
@@ -185,10 +202,41 @@ function extractNextDataText(html: string) {
   }
 }
 
+// ✅ Fetch Next.js route data JSON: /_next/data/<buildId>/<route>.json
+async function fetchNextDataJsonText(pageUrl: string, htmlForBuildId: string) {
+  const buildId = extractNextBuildId(htmlForBuildId);
+  if (!buildId) return "";
+
+  let pathname = "";
+  try {
+    const u = new URL(pageUrl);
+    pathname = u.pathname;
+  } catch {
+    return "";
+  }
+
+  // next data path rules:
+  // "/" -> "/index.json"
+  // "/services/development" -> "/services/development.json"
+  const dataPath = pathname === "/" ? "/index" : pathname;
+  const nextDataUrl = `${SITE_URL}/_next/data/${buildId}${dataPath}.json`;
+
+  try {
+    const res = await fetch(nextDataUrl, { headers: { "User-Agent": "SMC-KB-Crawler/1.0" } });
+    if (!res.ok) return "";
+    const json = await res.json();
+    const pageProps = json?.pageProps ?? json?.props?.pageProps ?? json;
+    const strs = extractStringsDeep(pageProps);
+    const uniq = Array.from(new Set(strs));
+    return normalizeText(uniq.join(" • "));
+  } catch {
+    return "";
+  }
+}
+
 function extractMainTextAndLinks(html: string, pageUrl: string) {
   const $ = cheerio.load(html);
 
-  // remove only truly non-content
   $("script, style, noscript, iframe").remove();
 
   const title = $("title").text().trim() || null;
@@ -196,14 +244,6 @@ function extractMainTextAndLinks(html: string, pageUrl: string) {
   const main = $("main");
   const raw = main.length ? main.text() : $("body").text();
   let text = normalizeText(raw);
-
-  // ✅ If DOM text is too short (CSR), fallback to __NEXT_DATA__
-  if (!text || text.length < 300) {
-    const nextDataText = extractNextDataText(html);
-    if (nextDataText && nextDataText.length > text.length) {
-      text = nextDataText;
-    }
-  }
 
   const links = new Set<string>();
   $("a[href]").each((_, el) => {
@@ -235,21 +275,13 @@ async function upsertChunkAndEmbedding(opts: { source: string; title: string | n
   const { data: chunkRow, error: chunkErr } = await supabase
     .from("smc_kb_chunks")
     .upsert(
-      {
-        source: opts.source,
-        title: opts.title,
-        content: opts.content,
-        content_hash,
-      },
+      { source: opts.source, title: opts.title, content: opts.content, content_hash },
       { onConflict: "content_hash" }
     )
     .select("id")
     .single();
 
-  if (chunkErr) {
-    console.error("Chunk upsert error full:", chunkErr);
-    throw new Error(`Chunk upsert error: ${chunkErr.message}`);
-  }
+  if (chunkErr) throw new Error(`Chunk upsert error: ${chunkErr.message}`);
 
   const chunk_id = (chunkRow as any).id as number;
 
@@ -264,31 +296,39 @@ async function upsertChunkAndEmbedding(opts: { source: string; title: string | n
 
   const embedding = await embedTextWithRetry(opts.content);
 
-  const { error: embErr } = await supabase.from("smc_kb_embeddings").insert({
-    chunk_id,
-    embedding,
-  });
-
-  if (embErr) {
-    console.error("Embedding insert error full:", embErr);
-    throw new Error(`Embedding insert error: ${embErr.message}`);
-  }
+  const { error: embErr } = await supabase.from("smc_kb_embeddings").insert({ chunk_id, embedding });
+  if (embErr) throw new Error(`Embedding insert error: ${embErr.message}`);
 }
 
 async function ingestPage(url: string) {
   const html = await fetchHtml(url);
   if (!html) return { url, title: null, chunks: 0, links: [], skipped: true };
 
-  const { title, text, links } = extractMainTextAndLinks(html, url);
+  const { title, text: domText, links } = extractMainTextAndLinks(html, url);
 
-  if (!text || text.length < 300) {
+  // Start with DOM text
+  let text = domText;
+
+  // Fallback 1: __NEXT_DATA__ strings
+  if (!text || text.length < MIN_PAGE_TEXT_LEN) {
+    const nd = extractNextDataText(html);
+    if (nd && nd.length > text.length) text = nd;
+  }
+
+  // Fallback 2: /_next/data/<buildId>/<route>.json strings (fixes CSR service pages)
+  if (!text || text.length < MIN_PAGE_TEXT_LEN) {
+    const jd = await fetchNextDataJsonText(url, html);
+    if (jd && jd.length > text.length) text = jd;
+  }
+
+  if (!text || text.length < MIN_PAGE_TEXT_LEN) {
     return { url, title, chunks: 0, links, skipped: true };
   }
 
   const chunks = chunkText(text).slice(0, MAX_CHUNKS_PER_PAGE);
 
   for (const content of chunks) {
-    if (content.length < 200) continue;
+    if (content.length < MIN_CHUNK_LEN) continue;
     await upsertChunkAndEmbedding({ source: url, title, content });
   }
 
@@ -299,10 +339,9 @@ async function main() {
   console.log(`SMC crawl ingest starting…`);
   console.log(`SITE_URL: ${SITE_URL}`);
   console.log(`MAX_PAGES: ${MAX_PAGES}, CONCURRENCY: ${CONCURRENCY}`);
+  console.log(`MIN_PAGE_TEXT_LEN: ${MIN_PAGE_TEXT_LEN}, MIN_CHUNK_LEN: ${MIN_CHUNK_LEN}`);
 
   const seen = new Set<string>();
-
-  // Seed queue with known routes
   const queue: string[] = Array.from(
     new Set(SEED_PATHS.map((p) => canonicalize(new URL(p, SITE_URL).toString())).filter(Boolean))
   );
@@ -331,7 +370,6 @@ async function main() {
       if (r.status === "fulfilled") {
         ok++;
         if (r.value.skipped) skipped++;
-
         console.log(`✅ ${r.value.url} (chunks: ${r.value.chunks}${r.value.skipped ? ", skipped" : ""})`);
 
         for (const link of r.value.links) {
@@ -353,6 +391,8 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
+
 
 
 
