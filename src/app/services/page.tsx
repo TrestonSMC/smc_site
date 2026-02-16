@@ -4,6 +4,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
+import type { ReactNode } from "react";
 import {
   Megaphone,
   Video,
@@ -31,7 +32,7 @@ export default function ServicesPage() {
     visible: { transition: { staggerChildren: 0.08 } },
   };
 
-  const Pill = ({ children }: { children: React.ReactNode }) => (
+  const Pill = ({ children }: { children: ReactNode }) => (
     <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80 backdrop-blur">
       {children}
     </span>
@@ -164,12 +165,13 @@ export default function ServicesPage() {
     );
   };
 
-  const ServiceCard = ({
-    c,
-  }: {
-    c: (typeof categories)[number];
-  }) => {
+  const ServiceCard = ({ c }: { c: (typeof categories)[number] }) => {
     const Icon = c.icon;
+
+    // ✅ FIX: Weddings should go to /weddings (packages page)
+    // everything else stays /services/{slug}
+    const learnHref = c.slug === "weddings" ? "/weddings" : `/services/${c.slug}`;
+
     return (
       <motion.div
         variants={fadeUp}
@@ -226,7 +228,7 @@ export default function ServicesPage() {
 
           <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
             <Link
-              href={`/services/${c.slug}`}
+              href={learnHref}
               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-5 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
             >
               Learn more <ArrowRight className="h-4 w-4" />
@@ -443,6 +445,7 @@ export default function ServicesPage() {
     </main>
   );
 }
+
 
 
 

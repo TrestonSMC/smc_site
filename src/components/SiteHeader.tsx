@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { Menu, X, ArrowRight } from "lucide-react";
 
 type NavItem = { label: string; href: string };
@@ -24,13 +24,26 @@ export default function SiteHeader({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const closeMenu = useCallback(() => setMobileOpen(false), []);
+  const toggleMenu = useCallback(() => setMobileOpen((v) => !v), []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMobileOpen(false);
+      if (e.key === "Escape") closeMenu();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+    window.addEventListener("keydown", onKey, { passive: true } as any);
+    return () => window.removeEventListener("keydown", onKey as any);
+  }, [closeMenu]);
+
+  // Prevent background scroll when menu is open (fixes iOS weirdness)
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileOpen]);
 
   const NavLink = ({
     href,
@@ -44,7 +57,8 @@ export default function SiteHeader({
           ? "bg-white/10 text-white"
           : "text-white/80 hover:bg-white/5 hover:text-white"
       }`}
-      onClick={() => setMobileOpen(false)}
+      onClick={closeMenu}
+      prefetch
     >
       {label}
     </Link>
@@ -64,7 +78,8 @@ export default function SiteHeader({
             href="/"
             className="group flex items-center gap-3"
             aria-label="Go home"
-            onClick={() => setMobileOpen(false)}
+            onClick={closeMenu}
+            prefetch
           >
             <Image
               src="/images/smc-logo.png"
@@ -102,92 +117,102 @@ export default function SiteHeader({
               ))}
             </div>
 
-            {/* CTA */}
+            {/* CTA (desktop only) */}
             <Link
               href={cta.href}
-              onClick={() => setMobileOpen(false)}
+              onClick={closeMenu}
               className="ml-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
+              prefetch
             >
               {cta.label} <ArrowRight className="h-4 w-4" />
             </Link>
           </nav>
 
-          {/* Mobile: burger + CTA */}
+          {/* Mobile: burger only (CONTACT button removed) */}
           <div className="flex items-center gap-3 md:hidden">
-            <Link
-              href={cta.href}
-              onClick={() => setMobileOpen(false)}
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
-            >
-              Contact <ArrowRight className="h-4 w-4" />
-            </Link>
             <button
               type="button"
-              onClick={() => setMobileOpen(true)}
-              className="inline-flex items-center justify-center rounded-full border border-white/10 bg-black/25 p-3 text-white/90 hover:bg-black/40 transition"
-              aria-label="Open menu"
+              onClick={toggleMenu}
+              className="inline-flex items-center justify-center rounded-full border border-white/10 bg-black/25 p-3 text-white/90 hover:bg-black/40 transition active:scale-[0.98]"
+              aria-label={mobileOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-menu"
             >
-              <Menu className="h-5 w-5" />
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
         </div>
       </div>
 
       {/* Mobile sheet */}
-      {mobileOpen && (
-        <div className="md:hidden">
-          <button
-            aria-label="Close menu"
-            className="fixed inset-0 z-40 bg-black/60"
-            onClick={() => setMobileOpen(false)}
-          />
-          <div className="fixed top-0 left-0 right-0 z-50 mx-auto">
-            <div className="mx-3 mt-3 overflow-hidden rounded-3xl border border-white/10 bg-black/70 backdrop-blur-xl shadow-[0_18px_70px_rgba(0,0,0,0.65)]">
-              <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-                <div className="text-sm font-semibold text-white/90">Menu</div>
-                <button
-                  type="button"
-                  onClick={() => setMobileOpen(false)}
-                  className="inline-flex items-center justify-center rounded-full border border-white/10 bg-black/25 p-2 text-white/90 hover:bg-black/40 transition"
-                  aria-label="Close menu"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+      <div
+        className={`md:hidden ${mobileOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+        aria-hidden={!mobileOpen}
+      >
+        {/* Overlay */}
+        <button
+          aria-label="Close menu"
+          className={`fixed inset-0 z-40 bg-black/60 transition-opacity ${
+            mobileOpen ? "opacity-100" : "opacity-0"
+          }`}
+          onClick={closeMenu}
+        />
 
-              <div className="p-2">
-                {[...leftNav, ...rightNav].map((l) => (
-                  <Link
-                    key={l.href}
-                    href={l.href}
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center justify-between rounded-2xl px-4 py-4 text-base font-semibold text-white/90 hover:bg-white/5 transition"
-                  >
-                    <span>{l.label}</span>
-                    <span className="text-white/40">→</span>
-                  </Link>
-                ))}
-              </div>
+        {/* Panel */}
+        <div
+          id="mobile-menu"
+          className={`fixed top-0 right-0 z-50 h-[100dvh] w-[86vw] max-w-sm transform transition-transform duration-200 ease-out ${
+            mobileOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          <div className="h-full overflow-y-auto border-l border-white/10 bg-black/75 backdrop-blur-lg shadow-[0_18px_70px_rgba(0,0,0,0.65)]">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
+              <div className="text-sm font-semibold text-white/90">Menu</div>
+              <button
+                type="button"
+                onClick={closeMenu}
+                className="inline-flex items-center justify-center rounded-full border border-white/10 bg-black/25 p-2 text-white/90 hover:bg-black/40 transition"
+                aria-label="Close menu"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-              <div className="border-t border-white/10 p-4">
+            <div className="p-2">
+              {[...leftNav, ...rightNav].map((l) => (
                 <Link
-                  href={cta.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-neutral-950 hover:opacity-90 transition"
+                  key={l.href}
+                  href={l.href}
+                  onClick={closeMenu}
+                  prefetch
+                  className="flex items-center justify-between rounded-2xl px-4 py-4 text-base font-semibold text-white/90 hover:bg-white/5 transition active:scale-[0.99]"
                 >
-                  {cta.label} <ArrowRight className="h-4 w-4" />
+                  <span>{l.label}</span>
+                  <span className="text-white/40">→</span>
                 </Link>
+              ))}
+            </div>
 
-                <div className="mt-3 text-xs leading-relaxed text-white/55">
-                  Slater Media Company — The Creatives Express
-                </div>
+            <div className="border-t border-white/10 p-4">
+              <Link
+                href={cta.href}
+                onClick={closeMenu}
+                prefetch
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-neutral-950 hover:opacity-90 transition active:scale-[0.99]"
+              >
+                {cta.label} <ArrowRight className="h-4 w-4" />
+              </Link>
+
+              <div className="mt-3 text-xs leading-relaxed text-white/55">
+                Slater Media Company — The Creatives Express
               </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </header>
   );
 }
+
 
 
