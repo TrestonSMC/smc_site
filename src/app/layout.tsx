@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ChatDock from "@/components/ChatDock";
 import SiteHeader from "@/components/SiteHeader";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -68,6 +69,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased text-white bg-neutral-950 relative overflow-x-hidden`}
       >
+        {/* ✅ GA4 */}
+        <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_ID ?? ""} />
+
         {/* ✅ Global nebula behind EVERYTHING */}
         <NebulaGlobal />
 
@@ -81,6 +85,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+
 
 
 

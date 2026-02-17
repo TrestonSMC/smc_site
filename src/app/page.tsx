@@ -95,7 +95,9 @@ function HeroVideoTopOnly({
     const ua = navigator.userAgent || "";
     return (
       /iPad|iPhone|iPod/.test(ua) ||
-      (ua.includes("Mac") && typeof document !== "undefined" && "ontouchend" in document)
+      (ua.includes("Mac") &&
+        typeof document !== "undefined" &&
+        "ontouchend" in document)
     );
   }, []);
 
@@ -288,6 +290,199 @@ function AutoPlayPreview({
   );
 }
 
+/* -------------------- mega footer (PlayStation-style vibe) -------------------- */
+function SiteFooter() {
+  const year = new Date().getFullYear();
+
+  const columns: {
+    title: string;
+    links: { label: string; href: string; external?: boolean }[];
+  }[] = [
+{
+  title: "Company",
+  links: [
+    { label: "About", href: "/about" },
+    { label: "Services", href: "/services" },
+    { label: "Showroom", href: "/showroom" },
+    { label: "Insider Access", href: "/insider-access" },
+    { label: "Careers", href: "/careers" },
+  ],
+},
+    {
+      title: "News & Media",
+      links: [
+        { label: "Showroom Drops", href: "/showroom" },
+        { label: "Latest Work", href: "/showroom" },
+        { label: "Media Inquiries", href: "/contact" },
+      ],
+    },
+    {
+      title: "Impact",
+      links: [
+        { label: "Accessibility", href: "/accessibility" },
+        { label: "Online Safety", href: "/safety" },
+        { label: "Responsible Build", href: "/responsible" },
+      ],
+    },
+    {
+      title: "Related Sites",
+      links: [
+        { label: "DozersGrill.com", href: "https://dozersgrill.com", external: true },
+        {
+          label: "SMC App (App Store)",
+          href: "https://apps.apple.com/us/app/slater-media-co/id6754180869",
+          external: true,
+        },
+        { label: "Instagram", href: "https://instagram.com/", external: true },
+        { label: "YouTube", href: "https://youtube.com/", external: true },
+      ],
+    },
+  ];
+
+  const legalLinks: { label: string; href: string; external?: boolean }[] = [
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Terms Of Service", href: "/terms" },
+    { label: "Cookie Policy", href: "/cookies" },
+    { label: "Support", href: "/contact" },
+    { label: "Sitemap", href: "/sitemap.xml", external: true },
+  ];
+
+  return (
+    <footer className="relative">
+      {/* top accent bar */}
+      <div className="h-2 w-full bg-[linear-gradient(90deg,rgba(179,106,255,0.35),rgba(0,180,255,0.45),rgba(255,196,92,0.32))]" />
+
+      <div className="bg-neutral-950/70 backdrop-blur-md border-t border-white/10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-10">
+            {/* brand */}
+            <div className="lg:col-span-4">
+              <div className="flex items-center gap-4">
+                {/* simple mark (no image dependency) */}
+                <div className="relative h-12 w-12 rounded-2xl border border-white/12 bg-black/30 overflow-hidden shadow-[0_18px_70px_rgba(0,0,0,0.55)]">
+                  <div className="absolute inset-0 opacity-80 bg-[radial-gradient(circle_at_30%_20%,rgba(179,106,255,0.55),transparent_55%),radial-gradient(circle_at_80%_35%,rgba(0,180,255,0.45),transparent_58%),radial-gradient(circle_at_50%_90%,rgba(255,196,92,0.30),transparent_55%)]" />
+                  <div className="absolute inset-0 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]" />
+                </div>
+
+                <div>
+                  <div className="text-base font-semibold text-white/95">
+                    Slater Media Company
+                  </div>
+                  <div className="text-sm text-white/60">The Creatives Express</div>
+                </div>
+              </div>
+
+              <p className="mt-5 text-sm leading-relaxed text-white/65 max-w-md">
+                Websites, apps, and cinematic media — built clean, fast, and premium.
+              </p>
+
+              <div className="mt-6 flex flex-wrap gap-2">
+                <Link
+                  href="/services"
+                  className="inline-flex items-center rounded-full border border-white/12 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white/85 hover:bg-white/[0.09] transition"
+                >
+                  Explore services →
+                </Link>
+                <Link
+                  href="/showroom"
+                  className="inline-flex items-center rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm font-semibold text-white/75 hover:bg-black/30 transition"
+                >
+                  View work →
+                </Link>
+              </div>
+            </div>
+
+            {/* columns */}
+            <div className="lg:col-span-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
+                {columns.map((col) => (
+                  <div key={col.title}>
+                    <div className="text-sm font-semibold text-white/90">{col.title}</div>
+                    <ul className="mt-4 space-y-2.5">
+                      {col.links.map((l) => {
+                        const common =
+                          "inline-flex items-center gap-2 text-sm text-white/65 hover:text-white/90 transition";
+                        if (l.external) {
+                          return (
+                            <li key={l.label}>
+                              <a
+                                href={l.href}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={common}
+                              >
+                                {l.label}
+                                <span className="text-white/45">↗</span>
+                              </a>
+                            </li>
+                          );
+                        }
+                        return (
+                          <li key={l.label}>
+                            <Link href={l.href} className={common}>
+                              {l.label}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* divider */}
+          <div className="mt-12 border-t border-white/10" />
+
+          {/* legal row */}
+          <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="text-sm text-white/50">
+              © {year} Slater Media Company. All rights reserved.
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              {legalLinks.map((l) => {
+                const cls = "text-sm text-white/55 hover:text-white/85 transition";
+                if (l.external) {
+                  return (
+                    <a
+                      key={l.label}
+                      href={l.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={cls}
+                    >
+                      {l.label}
+                    </a>
+                  );
+                }
+                return (
+                  <Link key={l.label} href={l.href} className={cls}>
+                    {l.label}
+                  </Link>
+                );
+              })}
+
+              <button
+                type="button"
+                className="ml-0 lg:ml-2 inline-flex items-center gap-2 rounded-full border border-white/12 bg-black/20 px-4 py-2 text-sm font-semibold text-white/70 hover:bg-black/30 transition"
+                aria-label="Language"
+              >
+                🌐 English
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 text-xs text-white/40 leading-relaxed">
+            All trademarks, logos, and brand names are the property of their respective owners.
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
 /* -------------------- page -------------------- */
 export default function HomePage() {
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -297,7 +492,9 @@ export default function HomePage() {
     const ua = navigator.userAgent || "";
     const iOS =
       /iPad|iPhone|iPod/.test(ua) ||
-      (ua.includes("Mac") && typeof document !== "undefined" && "ontouchend" in document);
+      (ua.includes("Mac") &&
+        typeof document !== "undefined" &&
+        "ontouchend" in document);
     return iOS;
   }, []);
 
@@ -516,7 +713,6 @@ export default function HomePage() {
         <div className="relative aspect-[16/10] w-full overflow-hidden">
           {isVideoThumbLink ? (
             <>
-              {/* ALWAYS poster-first (instant, reliable) */}
               <Image
                 src={poster}
                 alt={`${item.title} preview`}
@@ -525,7 +721,6 @@ export default function HomePage() {
                 className="object-cover"
               />
 
-              {/* Play preview only on NON-iOS and only when NOT mobile */}
               {!isMobile && !isIOS && (
                 <AutoPlayPreview
                   src={(item as any).videoThumbSrc}
@@ -572,7 +767,8 @@ export default function HomePage() {
 
   // -------------------- portl content --------------------
   const [portlContent, setPortlContent] = useState<any>(null);
-  const getDeep = (obj: any, path: string) => path.split(".").reduce((acc: any, k) => (acc ? acc[k] : undefined), obj);
+  const getDeep = (obj: any, path: string) =>
+    path.split(".").reduce((acc: any, k) => (acc ? acc[k] : undefined), obj);
   const portlText = (path: string, fallback: string) => {
     const v = getDeep(portlContent, path);
     return typeof v === "string" && v.trim().length ? v : fallback;
@@ -667,8 +863,14 @@ export default function HomePage() {
                   Slater Media Company
                 </motion.div>
 
-                <motion.p variants={fadeUp} className="mt-5 text-base md:text-lg text-white/80 leading-relaxed">
-                  {portlText("hero.body", "Websites, apps, and cinematic media — built clean, fast, and premium.")}
+                <motion.p
+                  variants={fadeUp}
+                  className="mt-5 text-base md:text-lg text-white/80 leading-relaxed"
+                >
+                  {portlText(
+                    "hero.body",
+                    "Websites, apps, and cinematic media — built clean, fast, and premium."
+                  )}
                 </motion.p>
 
                 <motion.div variants={fadeUp} className="mt-7 flex justify-center gap-3 flex-wrap">
@@ -696,8 +898,12 @@ export default function HomePage() {
             <motion.div variants={stagger} initial="visible" animate="visible">
               <motion.div variants={fadeUp} className="flex items-end justify-between gap-6 flex-wrap">
                 <div>
-                  <div className="text-xs font-semibold tracking-[0.22em] text-white/60">NEW AT SMC</div>
-                  <h3 className="mt-2 text-2xl md:text-4xl font-semibold tracking-tight">Latest drops</h3>
+                  <div className="text-xs font-semibold tracking-[0.22em] text-white/60">
+                    NEW AT SMC
+                  </div>
+                  <h3 className="mt-2 text-2xl md:text-4xl font-semibold tracking-tight">
+                    Latest drops
+                  </h3>
                 </div>
 
                 <Link
@@ -745,7 +951,9 @@ export default function HomePage() {
 
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <div className="text-sm font-semibold text-white/95">Insider Access</div>
+                          <div className="text-sm font-semibold text-white/95">
+                            Insider Access
+                          </div>
 
                           <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/20 px-2.5 py-1 text-[10px] font-semibold tracking-[0.18em] text-white/90">
                             <Star className="h-3.5 w-3.5" />
@@ -758,7 +966,8 @@ export default function HomePage() {
                         </div>
 
                         <div className="mt-1 text-sm text-white/80 max-w-xl">
-                          Early previews, private drops, and internal tools — for clients who want first access.
+                          Early previews, private drops, and internal tools — for clients who want first
+                          access.
                         </div>
                       </div>
                     </div>
@@ -791,9 +1000,7 @@ export default function HomePage() {
                         className="rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-md p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_16px_55px_rgba(0,0,0,0.35)]"
                       >
                         <div className="text-sm font-semibold text-white/92">{p.t}</div>
-                        <div className="mt-1 text-sm text-white/75 leading-relaxed">
-                          {p.d}
-                        </div>
+                        <div className="mt-1 text-sm text-white/75 leading-relaxed">{p.d}</div>
                       </div>
                     ))}
                   </div>
@@ -813,7 +1020,9 @@ export default function HomePage() {
               <div className="relative p-7 sm:p-10">
                 <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
                   <div>
-                    <div className="text-xs font-semibold tracking-[0.22em] text-white/60">CONTACT</div>
+                    <div className="text-xs font-semibold tracking-[0.22em] text-white/60">
+                      CONTACT
+                    </div>
                     <h3 className="mt-3 text-2xl md:text-4xl font-semibold tracking-tight">
                       Let’s build something clean.
                     </h3>
@@ -891,10 +1100,14 @@ export default function HomePage() {
                     </button>
 
                     {sent === "ok" && (
-                      <div className="text-sm text-white/80">Received — we’ll hit you back soon.</div>
+                      <div className="text-sm text-white/80">
+                        Received — we’ll hit you back soon.
+                      </div>
                     )}
                     {sent === "err" && (
-                      <div className="text-sm text-white/80">Didn’t send — try again in a minute.</div>
+                      <div className="text-sm text-white/80">
+                        Didn’t send — try again in a minute.
+                      </div>
                     )}
                   </div>
                 </form>
@@ -907,13 +1120,13 @@ export default function HomePage() {
           </div>
         </section>
 
-        <footer className="pb-8 text-center text-white/55 text-sm">
-          © {new Date().getFullYear()} Slater Media Company — The Creatives Express
-        </footer>
+        {/* NEW MEGA FOOTER */}
+        <SiteFooter />
       </div>
     </main>
   );
 }
+
 
 
 
