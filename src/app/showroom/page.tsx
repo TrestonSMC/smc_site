@@ -46,15 +46,15 @@ function glowBySubcat(sub: ShowroomSubcategory) {
 function accentGradientBySubcat(sub: ShowroomSubcategory) {
   switch (sub) {
     case "reels":
-      return "from-fuchsia-500/22 via-pink-500/10 to-transparent";
+      return "from-fuchsia-500/18 via-pink-500/8 to-transparent";
     case "weddings":
-      return "from-amber-500/22 via-yellow-500/10 to-transparent";
+      return "from-amber-500/18 via-yellow-500/8 to-transparent";
     case "content":
-      return "from-cyan-500/22 via-blue-500/10 to-transparent";
+      return "from-cyan-500/18 via-blue-500/8 to-transparent";
     case "featured":
-      return "from-emerald-500/22 via-lime-500/10 to-transparent";
+      return "from-emerald-500/18 via-lime-500/8 to-transparent";
     default:
-      return "from-white/12 via-white/6 to-transparent";
+      return "from-white/10 via-white/5 to-transparent";
   }
 }
 
@@ -136,14 +136,7 @@ function useInView<T extends Element>(options?: IntersectionObserverInit) {
   return { ref, inView };
 }
 
-/* -------------------- performant video tile -------------------- */
-/**
- * Goals:
- * - "Show instantly": remove whileInView gating + heavy motion entrances.
- * - Fast preview: poster immediately + lazy load actual video when tile is near viewport.
- * - Desktop hover preview: play on hover (only after loaded).
- * - Mobile: no hover => tap = open modal; still preloads when near viewport for instant modal play.
- */
+/* -------------------- performant video tile (thumb-first + hover/touch preview) -------------------- */
 function VideoTile({
   item,
   onOpen,
@@ -160,15 +153,23 @@ function VideoTile({
 
   const [shouldLoad, setShouldLoad] = useState(priority);
   const [canPlay, setCanPlay] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
 
-  // lazy-attach src only when near viewport (or priority)
+  const pressTimer = useRef<number | null>(null);
+  const longPressFired = useRef(false);
+
+  const thumb =
+    (item as any).thumbnail ||
+    (item as any).thumb ||
+    (item as any).poster ||
+    undefined;
+
   useEffect(() => {
     if (priority) return;
     if (!wrap.inView) return;
     setShouldLoad(true);
   }, [wrap.inView, priority]);
 
-  // mark when the browser can actually play
   useEffect(() => {
     const v = vRef.current;
     if (!v) return;
@@ -178,24 +179,69 @@ function VideoTile({
     return () => v.removeEventListener("canplay", onCanPlay);
   }, [shouldLoad]);
 
-  const onEnter = useCallback(() => {
+  const startPreview = useCallback(() => {
+    setPreviewing(true);
     const v = vRef.current;
-    if (!v || !canPlay) return;
+    if (!v) return;
+    if (!shouldLoad) setShouldLoad(true);
+    if (!canPlay) return;
     try {
       v.currentTime = 0;
       v.play().catch(() => {});
     } catch {}
-  }, [canPlay]);
+  }, [canPlay, shouldLoad]);
 
-  const onLeave = useCallback(() => {
+  const stopPreview = useCallback(() => {
+    setPreviewing(false);
     const v = vRef.current;
     if (!v) return;
     try {
       v.pause();
-      // free a bit of work on mobile/low-end
       v.currentTime = 0;
     } catch {}
   }, []);
+
+  const onMouseEnter = useCallback(() => {
+    startPreview();
+  }, [startPreview]);
+
+  const onMouseLeave = useCallback(() => {
+    stopPreview();
+  }, [stopPreview]);
+
+  const onTouchStart = useCallback(() => {
+    longPressFired.current = false;
+    if (pressTimer.current) window.clearTimeout(pressTimer.current);
+
+    pressTimer.current = window.setTimeout(() => {
+      longPressFired.current = true;
+      startPreview();
+    }, 140);
+  }, [startPreview]);
+
+  const onTouchEnd = useCallback(() => {
+    if (pressTimer.current) {
+      window.clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+
+    if (longPressFired.current) {
+      stopPreview();
+      longPressFired.current = false;
+      return;
+    }
+
+    onOpen(item);
+  }, [item, onOpen, stopPreview]);
+
+  const onTouchCancel = useCallback(() => {
+    if (pressTimer.current) {
+      window.clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+    longPressFired.current = false;
+    stopPreview();
+  }, [stopPreview]);
 
   const aspect =
     size === "lg" ? "aspect-[16/9]" : size === "sm" ? "aspect-[16/10]" : "aspect-video";
@@ -205,8 +251,11 @@ function VideoTile({
       <button
         type="button"
         onClick={() => onOpen(item)}
-        onMouseEnter={onEnter}
-        onMouseLeave={onLeave}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchCancel}
         className={cx(
           "group relative w-full overflow-hidden rounded-3xl border border-white/10 bg-white/5 text-left backdrop-blur",
           "transition-all duration-300 hover:-translate-y-1 hover:border-white/20",
@@ -214,61 +263,52 @@ function VideoTile({
         )}
         aria-label="Open video"
       >
-        {/* subtle neon sweep */}
-        <div className="pointer-events-none absolute -inset-24 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
-          <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(179,106,255,0.18),transparent_58%)] blur-2xl" />
-          <div className="absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(0,180,255,0.14),transparent_60%)] blur-2xl" />
-        </div>
+        <div className={cx("relative w-full bg-black/25", aspect)}>
+          <div className="absolute inset-0">
+            {thumb ? (
+              <img
+                src={thumb}
+                alt=""
+                className="h-full w-full object-cover"
+                loading={priority ? "eager" : "lazy"}
+                draggable={false}
+              />
+            ) : (
+              <div className="h-full w-full bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.12),transparent_58%)]" />
+            )}
+          </div>
 
-        <div className={cx("relative w-full bg-black/35", aspect)}>
-          {/* Poster FIRST (instant). If you have posters per item, set item.poster in your data.
-              Otherwise this keeps the tile from looking "empty" while metadata loads. */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.10),transparent_55%)]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-black/5" />
-
-          {/* Actual video (loads only when near viewport / priority) */}
           <video
             ref={vRef}
-            // src only when shouldLoad to avoid network spam + stalls
             src={shouldLoad ? item.src : undefined}
-            // preload metadata is enough for instant hover play once near viewport
             preload={priority ? "auto" : shouldLoad ? "metadata" : "none"}
             muted
             playsInline
             loop
-            // object-cover feels faster/cleaner for previews than contain
             className={cx(
-              "relative h-full w-full object-cover transform-gpu",
-              // when not loaded yet, keep it hidden so the poster bg shows clean
-              shouldLoad ? "opacity-100" : "opacity-0"
+              "absolute inset-0 h-full w-full object-cover transform-gpu transition-opacity duration-200",
+              previewing && shouldLoad ? "opacity-100" : "opacity-0"
             )}
-            onError={() => {
-              // fail silently; poster/bg stays
-              setCanPlay(false);
-            }}
+            onError={() => setCanPlay(false)}
           />
 
-          {/* overlays */}
           <div
             className={cx(
-              "pointer-events-none absolute inset-0 bg-gradient-to-br",
+              "pointer-events-none absolute inset-0 bg-gradient-to-br opacity-70",
               accentGradientBySubcat(item.subcategory)
             )}
           />
 
-          {/* badge */}
-          <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3 py-1 text-xs text-white/85 backdrop-blur">
+          <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/35 px-3 py-1 text-xs text-white/85 backdrop-blur">
             <Sparkles className="h-3.5 w-3.5 text-white/70" />
             {prettySubcat(item.subcategory)}
           </div>
 
-          {/* play */}
-          <div className="absolute bottom-4 right-4 grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-black/45 text-white/85 backdrop-blur transition group-hover:scale-[1.03]">
+          <div className="absolute bottom-4 right-4 grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-black/35 text-white/85 backdrop-blur transition group-hover:scale-[1.03]">
             <Play className="h-5 w-5" />
           </div>
         </div>
 
-        {/* neon hairline */}
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] opacity-60 bg-[linear-gradient(90deg,rgba(179,106,255,0.95),rgba(0,180,255,0.95),rgba(255,196,92,0.95))] shadow-[0_0_22px_rgba(0,180,255,0.22)]" />
       </button>
     </div>
@@ -301,10 +341,7 @@ function Row({
       <div className="mt-6 -mx-6 px-6 overflow-x-auto">
         <div className="flex gap-5 pb-2 snap-x snap-mandatory">
           {items.map((it, idx) => (
-            <div
-              key={it.id}
-              className="w-[320px] sm:w-[360px] md:w-[420px] shrink-0 snap-start"
-            >
+            <div key={it.id} className="w-[320px] sm:w-[360px] md:w-[420px] shrink-0 snap-start">
               <VideoTile item={it} onOpen={onOpen} size="sm" priority={idx < 2} />
             </div>
           ))}
@@ -316,7 +353,6 @@ function Row({
 
 export default function ShowroomPage() {
   const reduceMotion = useReducedMotion();
-
   const [openItem, setOpenItem] = useState<ShowroomItem | null>(null);
 
   useEffect(() => {
@@ -327,18 +363,15 @@ export default function ShowroomPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // ✅ Video only for now
   const videoOnlyItems = useMemo(() => {
     return showroomItems.filter((i) => i.category === ("video" as ShowroomCategory));
   }, []);
 
-  // Spotlight (first 3 featured; fallback to first 3 video)
   const featuredItems = useMemo(() => {
     const feats = videoOnlyItems.filter((i) => i.subcategory === "featured");
     return (feats.length ? feats : videoOnlyItems).slice(0, 3);
   }, [videoOnlyItems]);
 
-  // Rows
   const reelsPicks = useMemo(
     () => videoOnlyItems.filter((i) => i.subcategory === "reels").slice(0, 12),
     [videoOnlyItems]
@@ -354,7 +387,6 @@ export default function ShowroomPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-neutral-950 text-white">
-      {/* Background */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.10),transparent_40%),radial-gradient(circle_at_80%_30%,rgba(255,255,255,0.08),transparent_42%),radial-gradient(circle_at_40%_80%,rgba(255,255,255,0.06),transparent_45%)]" />
         <div className="absolute -top-52 left-[10%] h-[620px] w-[620px] rounded-full bg-[radial-gradient(circle,rgba(179,106,255,0.20),transparent_60%)] blur-3xl" />
@@ -364,10 +396,8 @@ export default function ShowroomPage() {
         <Stars reduceMotion={!!reduceMotion} />
       </div>
 
-      {/* HERO */}
       <section className="relative">
         <div className="mx-auto max-w-6xl px-6 pt-28 pb-10 md:pt-32">
-          {/* INSTANT: no whileInView gating */}
           <motion.div initial="visible" animate="visible" variants={stagger}>
             <motion.div variants={fadeUp}>
               <div className="flex flex-wrap gap-3">
@@ -379,14 +409,13 @@ export default function ShowroomPage() {
 
               <h1 className="mt-6 text-4xl font-semibold tracking-tight md:text-5xl">
                 Work that feels cinematic.
-                <span className="block text-white/80">Scroll. Hover. Click.</span>
+                <span className="block text-white/80">Scroll. Hover. Press-hold.</span>
               </h1>
 
               <p className="mt-4 max-w-2xl text-white/70">
                 A curated vault of SMC video work — spotlight pieces up top and collections below.
               </p>
 
-              {/* ✅ Only Explore Services */}
               <div className="mt-7">
                 <Link
                   href="/services"
@@ -397,23 +426,20 @@ export default function ShowroomPage() {
               </div>
             </motion.div>
 
-            {/* SPOTLIGHT */}
             <motion.div variants={fadeUp} className="mt-10">
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_18px_60px_rgba(0,0,0,0.35)]">
                 <div className="flex items-center justify-between">
                   <div className="text-xs font-semibold tracking-widest text-white/60">SPOTLIGHT</div>
-                  <div className="text-xs text-white/60">Hover to preview • Click to open</div>
+                  <div className="text-xs text-white/60">Hover/press-hold to preview • Tap/click to open</div>
                 </div>
 
                 <div className="mt-4 grid gap-5 lg:grid-cols-12">
-                  {/* big */}
                   <div className="lg:col-span-7">
                     {featuredItems[0] ? (
                       <VideoTile item={featuredItems[0]} onOpen={setOpenItem} size="lg" priority />
                     ) : null}
                   </div>
 
-                  {/* stacked */}
                   <div className="lg:col-span-5 grid gap-5">
                     {featuredItems[1] ? (
                       <VideoTile item={featuredItems[1]} onOpen={setOpenItem} size="sm" priority />
@@ -426,7 +452,6 @@ export default function ShowroomPage() {
               </div>
             </motion.div>
 
-            {/* COLLECTION ROWS */}
             <motion.div variants={fadeUp} className="mt-6">
               <Row
                 title="Reels"
@@ -451,7 +476,6 @@ export default function ShowroomPage() {
         </div>
       </section>
 
-      {/* MODAL */}
       <AnimatePresence>
         {openItem ? (
           <motion.div
@@ -517,7 +541,7 @@ export default function ShowroomPage() {
                 ) : null}
 
                 <div className="mt-6 flex items-center justify-between gap-3">
-                  <div className="text-xs text-white/50">Tip: hover tiles for preview • press ESC to close</div>
+                  <div className="text-xs text-white/50">Tip: press-hold tiles to preview • press ESC to close</div>
                   <Link
                     href="/insider-access"
                     className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white hover:bg-white/10 transition"
