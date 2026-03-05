@@ -1,19 +1,34 @@
-import { google } from "googleapis";
+// src/lib/googleSheets.ts
 
-export function getSheetsClient() {
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID!;
-  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET!;
-  const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI!;
-  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN!;
+export async function appendApplicationToSheet(data: {
+  token: string;          // APPS_SCRIPT_TOKEN
+  timestamp: string;
+  name: string;
+  role: string;
+  viewLink: string;
+  applicationId: string;
+  payload: string;        // JSON string
+}) {
+  const scriptUrl = process.env.GOOGLE_APPS_SCRIPT_URL;
+  if (!scriptUrl) throw new Error("Missing GOOGLE_APPS_SCRIPT_URL");
 
-  if (!clientId || !clientSecret || !redirectUri || !refreshToken) {
-    throw new Error(
-      "Missing Google OAuth env vars. Need GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI, GOOGLE_OAUTH_REFRESH_TOKEN"
-    );
+  // Optional: fail early if token missing (recommended)
+  if (!data.token) throw new Error("Missing APPS_SCRIPT_TOKEN");
+
+  const res = await fetch(scriptUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+    cache: "no-store",
+  });
+
+  const json = await res.json().catch(() => null);
+
+  if (!res.ok || !json?.ok) {
+    throw new Error(json?.error || `Sheets append failed (status ${res.status})`);
   }
 
-  const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
-  oauth2.setCredentials({ refresh_token: refreshToken });
-
-  return google.sheets({ version: "v4", auth: oauth2 });
+  return json as { ok: true; applicationId: string };
 }
+
+
