@@ -1,4 +1,3 @@
-// src/app/showroom/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -6,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { X, Film, Play, Sparkles, ChevronRight } from "lucide-react";
 import type { ShowroomCategory, ShowroomItem, ShowroomSubcategory } from "@/lib/showroom";
-import { showroomItems } from "@/lib/showroom";
 
 /* -------------------- utils -------------------- */
 function cx(...c: Array<string | false | undefined | null>) {
@@ -58,7 +56,6 @@ function accentGradientBySubcat(sub: ShowroomSubcategory) {
   }
 }
 
-/* -------------------- motion -------------------- */
 const fadeUp = {
   hidden: { opacity: 1, y: 0 },
   visible: { opacity: 1, y: 0 },
@@ -69,7 +66,6 @@ const stagger = {
   visible: {},
 };
 
-/* -------------------- UI bits -------------------- */
 const Pill = ({ children }: { children: React.ReactNode }) => (
   <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80 backdrop-blur">
     {children}
@@ -112,12 +108,10 @@ function Stars({ reduceMotion }: { reduceMotion: boolean }) {
   );
 }
 
-/* -------------------- thumb helpers -------------------- */
 function thumbFor(item: ShowroomItem) {
   return (item as any).thumbnail || (item as any).thumb || (item as any).poster || "";
 }
 
-/* -------------------- tiles -------------------- */
 function VideoTile({
   item,
   onOpen,
@@ -225,6 +219,8 @@ function Row({
 export default function ShowroomPage() {
   const reduceMotion = useReducedMotion();
   const [openItem, setOpenItem] = useState<ShowroomItem | null>(null);
+  const [items, setItems] = useState<ShowroomItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -234,9 +230,25 @@ export default function ShowroomPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const videoOnlyItems = useMemo(() => {
-    return showroomItems.filter((i) => i.category === ("video" as ShowroomCategory));
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/showroom", { cache: "no-store" });
+        const data = await res.json();
+        setItems(data.items || []);
+      } catch {
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
   }, []);
+
+  const videoOnlyItems = useMemo(() => {
+    return items.filter((i) => i.category === ("video" as ShowroomCategory));
+  }, [items]);
 
   const featuredItems = useMemo(() => {
     const feats = videoOnlyItems.filter((i) => i.subcategory === "featured");
@@ -299,52 +311,58 @@ export default function ShowroomPage() {
               </div>
             </motion.div>
 
-            <motion.div variants={fadeUp} className="mt-10">
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_18px_60px_rgba(0,0,0,0.35)]">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-semibold tracking-widest text-white/60">SPOTLIGHT</div>
-                  <div className="text-xs text-white/60">Click/tap to open</div>
-                </div>
+            {loading ? (
+              <div className="mt-10 text-white/60">Loading showroom...</div>
+            ) : (
+              <>
+                <motion.div variants={fadeUp} className="mt-10">
+                  <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_18px_60px_rgba(0,0,0,0.35)]">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-semibold tracking-widest text-white/60">SPOTLIGHT</div>
+                      <div className="text-xs text-white/60">Click/tap to open</div>
+                    </div>
 
-                <div className="mt-4 grid gap-5 lg:grid-cols-12">
-                  <div className="lg:col-span-7">
-                    {featuredItems[0] ? (
-                      <VideoTile item={featuredItems[0]} onOpen={setOpenItem} size="lg" priority />
-                    ) : null}
+                    <div className="mt-4 grid gap-5 lg:grid-cols-12">
+                      <div className="lg:col-span-7">
+                        {featuredItems[0] ? (
+                          <VideoTile item={featuredItems[0]} onOpen={setOpenItem} size="lg" priority />
+                        ) : null}
+                      </div>
+
+                      <div className="lg:col-span-5 grid gap-5">
+                        {featuredItems[1] ? (
+                          <VideoTile item={featuredItems[1]} onOpen={setOpenItem} size="sm" priority />
+                        ) : null}
+                        {featuredItems[2] ? (
+                          <VideoTile item={featuredItems[2]} onOpen={setOpenItem} size="sm" priority />
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
+                </motion.div>
 
-                  <div className="lg:col-span-5 grid gap-5">
-                    {featuredItems[1] ? (
-                      <VideoTile item={featuredItems[1]} onOpen={setOpenItem} size="sm" priority />
-                    ) : null}
-                    {featuredItems[2] ? (
-                      <VideoTile item={featuredItems[2]} onOpen={setOpenItem} size="sm" priority />
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div variants={fadeUp} className="mt-6">
-              <Row
-                title="Reels"
-                subtitle="Short-form edits built for attention."
-                items={reelsPicks}
-                onOpen={setOpenItem}
-              />
-              <Row
-                title="Content"
-                subtitle="Brand content, promos, and story-driven edits."
-                items={contentPicks}
-                onOpen={setOpenItem}
-              />
-              <Row
-                title="Weddings"
-                subtitle="Cinematic wedding work and emotional storytelling."
-                items={weddingPicks}
-                onOpen={setOpenItem}
-              />
-            </motion.div>
+                <motion.div variants={fadeUp} className="mt-6">
+                  <Row
+                    title="Reels"
+                    subtitle="Short-form edits built for attention."
+                    items={reelsPicks}
+                    onOpen={setOpenItem}
+                  />
+                  <Row
+                    title="Content"
+                    subtitle="Brand content, promos, and story-driven edits."
+                    items={contentPicks}
+                    onOpen={setOpenItem}
+                  />
+                  <Row
+                    title="Weddings"
+                    subtitle="Cinematic wedding work and emotional storytelling."
+                    items={weddingPicks}
+                    onOpen={setOpenItem}
+                  />
+                </motion.div>
+              </>
+            )}
           </motion.div>
         </div>
       </section>
@@ -387,9 +405,7 @@ export default function ShowroomPage() {
                 <div
                   className={cx(
                     "relative overflow-hidden rounded-2xl border border-white/10 bg-black/40",
-                    isReelOpen
-                      ? "mx-auto w-full max-w-[380px] aspect-[9/16]"
-                      : "w-full"
+                    isReelOpen ? "mx-auto w-full max-w-[380px] aspect-[9/16]" : "w-full"
                   )}
                 >
                   <video

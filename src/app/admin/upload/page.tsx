@@ -39,18 +39,16 @@ export default function AdminUploadPage() {
   const [result, setResult] = useState<UploadResult | null>(null);
 
   const subcategoryOptions = useMemo(() => {
-    if (category === "video") {
-      return ["reels", "weddings", "content", "featured"];
-    }
-    if (category === "app") {
-      return ["app-preview", "ui"];
-    }
+    if (category === "video") return ["reels", "weddings", "content", "featured"];
+    if (category === "app") return ["app-preview", "ui"];
     return ["site", "ui"];
   }, [category]);
 
   const onPickVideo = (file: File) => {
     setVideoFile(file);
     setResult(null);
+    setThumbnailBlob(null);
+    setThumbnailPreviewUrl("");
 
     const url = URL.createObjectURL(file);
     setVideoObjectUrl(url);
@@ -64,57 +62,71 @@ export default function AdminUploadPage() {
   const generateThumbnail = async () => {
     if (!videoRef.current || !canvasRef.current || !videoFile) return;
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-    await new Promise<void>((resolve, reject) => {
-      const onSeeked = () => {
-        resolve();
-        cleanup();
-      };
-      const onError = () => {
-        reject(new Error("Could not seek video."));
-        cleanup();
-      };
-      const cleanup = () => {
-        video.removeEventListener("seeked", onSeeked);
-        video.removeEventListener("error", onError);
-      };
+      await new Promise<void>((resolve, reject) => {
+        const onSeeked = () => {
+          cleanup();
+          resolve();
+        };
+        const onError = () => {
+          cleanup();
+          reject(new Error("Could not seek video."));
+        };
+        const cleanup = () => {
+          video.removeEventListener("seeked", onSeeked);
+          video.removeEventListener("error", onError);
+        };
 
-      video.addEventListener("seeked", onSeeked);
-      video.addEventListener("error", onError);
-      video.currentTime = Math.max(0, Number(thumbSecond) || 0);
-    });
+        video.addEventListener("seeked", onSeeked);
+        video.addEventListener("error", onError);
+        video.currentTime = Math.max(0, Number(thumbSecond) || 0);
+      });
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((b) => resolve(b), "image/jpeg", 0.86);
-    });
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.86);
+      });
 
-    if (!blob) return;
+      if (!blob) {
+        setResult({
+          ok: false,
+          error: "Could not generate thumbnail.",
+        });
+        return;
+      }
 
-    setThumbnailBlob(blob);
-    setThumbnailPreviewUrl(URL.createObjectURL(blob));
+      setThumbnailBlob(blob);
+      setThumbnailPreviewUrl(URL.createObjectURL(blob));
+      setResult(null);
+    } catch (error: any) {
+      setResult({
+        ok: false,
+        error: error?.message || "Thumbnail generation failed.",
+      });
+    }
   };
 
   const upload = async () => {
     if (!adminKey.trim()) {
-      alert("Enter your admin upload key.");
+      setResult({ ok: false, error: "Enter your admin upload key." });
       return;
     }
 
     if (!videoFile) {
-      alert("Pick a video first.");
+      setResult({ ok: false, error: "Pick a video first." });
       return;
     }
 
     if (!thumbnailBlob) {
-      alert("Generate the thumbnail first.");
+      setResult({ ok: false, error: "Generate the thumbnail first." });
       return;
     }
 
@@ -140,11 +152,23 @@ export default function AdminUploadPage() {
         body: form,
       });
 
-      const data = (await res.json()) as UploadResult;
+      let data: UploadResult | null = null;
+      let rawText = "";
+
+      try {
+        rawText = await res.text();
+        data = rawText ? (JSON.parse(rawText) as UploadResult) : null;
+      } catch {
+        data = {
+          ok: false,
+          error: rawText || `Upload failed with status ${res.status}`,
+        };
+      }
+
       setResult(data);
 
       if (!res.ok) {
-        throw new Error(data.error || "Upload failed.");
+        throw new Error(data?.error || `Upload failed with status ${res.status}`);
       }
     } catch (error: any) {
       setResult({
@@ -324,7 +348,7 @@ export default function AdminUploadPage() {
           </div>
 
           {result?.error ? (
-            <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+            <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-100 whitespace-pre-wrap break-words">
               {result.error}
             </div>
           ) : null}
