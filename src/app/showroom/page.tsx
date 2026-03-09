@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { X, Film, Play, Sparkles, ChevronRight } from "lucide-react";
 import type { ShowroomCategory, ShowroomItem, ShowroomSubcategory } from "@/lib/showroom";
@@ -58,7 +58,7 @@ function accentGradientBySubcat(sub: ShowroomSubcategory) {
   }
 }
 
-/* -------------------- motion (instant on mobile) -------------------- */
+/* -------------------- motion -------------------- */
 const fadeUp = {
   hidden: { opacity: 1, y: 0 },
   visible: { opacity: 1, y: 0 },
@@ -112,31 +112,12 @@ function Stars({ reduceMotion }: { reduceMotion: boolean }) {
   );
 }
 
-/* -------------------- intersection helper -------------------- */
-function useInView<T extends Element>(options?: IntersectionObserverInit) {
-  const ref = useRef<T | null>(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        setInView(!!entry?.isIntersecting);
-      },
-      { root: null, threshold: 0.12, rootMargin: "600px 0px", ...options }
-    );
-
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [options]);
-
-  return { ref, inView };
+/* -------------------- thumb helpers -------------------- */
+function thumbFor(item: ShowroomItem) {
+  return (item as any).thumbnail || (item as any).thumb || (item as any).poster || "";
 }
 
-/* -------------------- performant video tile (thumb-first + hover/touch preview) -------------------- */
+/* -------------------- tiles -------------------- */
 function VideoTile({
   item,
   onOpen,
@@ -148,114 +129,16 @@ function VideoTile({
   size?: "sm" | "md" | "lg";
   priority?: boolean;
 }) {
-  const wrap = useInView<HTMLDivElement>({ rootMargin: priority ? "1200px 0px" : "800px 0px" });
-  const vRef = useRef<HTMLVideoElement | null>(null);
-
-  const [shouldLoad, setShouldLoad] = useState(priority);
-  const [canPlay, setCanPlay] = useState(false);
-  const [previewing, setPreviewing] = useState(false);
-
-  const pressTimer = useRef<number | null>(null);
-  const longPressFired = useRef(false);
-
-  const thumb =
-    (item as any).thumbnail ||
-    (item as any).thumb ||
-    (item as any).poster ||
-    undefined;
-
-  useEffect(() => {
-    if (priority) return;
-    if (!wrap.inView) return;
-    setShouldLoad(true);
-  }, [wrap.inView, priority]);
-
-  useEffect(() => {
-    const v = vRef.current;
-    if (!v) return;
-
-    const onCanPlay = () => setCanPlay(true);
-    v.addEventListener("canplay", onCanPlay);
-    return () => v.removeEventListener("canplay", onCanPlay);
-  }, [shouldLoad]);
-
-  const startPreview = useCallback(() => {
-    setPreviewing(true);
-    const v = vRef.current;
-    if (!v) return;
-    if (!shouldLoad) setShouldLoad(true);
-    if (!canPlay) return;
-    try {
-      v.currentTime = 0;
-      v.play().catch(() => {});
-    } catch {}
-  }, [canPlay, shouldLoad]);
-
-  const stopPreview = useCallback(() => {
-    setPreviewing(false);
-    const v = vRef.current;
-    if (!v) return;
-    try {
-      v.pause();
-      v.currentTime = 0;
-    } catch {}
-  }, []);
-
-  const onMouseEnter = useCallback(() => {
-    startPreview();
-  }, [startPreview]);
-
-  const onMouseLeave = useCallback(() => {
-    stopPreview();
-  }, [stopPreview]);
-
-  const onTouchStart = useCallback(() => {
-    longPressFired.current = false;
-    if (pressTimer.current) window.clearTimeout(pressTimer.current);
-
-    pressTimer.current = window.setTimeout(() => {
-      longPressFired.current = true;
-      startPreview();
-    }, 140);
-  }, [startPreview]);
-
-  const onTouchEnd = useCallback(() => {
-    if (pressTimer.current) {
-      window.clearTimeout(pressTimer.current);
-      pressTimer.current = null;
-    }
-
-    if (longPressFired.current) {
-      stopPreview();
-      longPressFired.current = false;
-      return;
-    }
-
-    onOpen(item);
-  }, [item, onOpen, stopPreview]);
-
-  const onTouchCancel = useCallback(() => {
-    if (pressTimer.current) {
-      window.clearTimeout(pressTimer.current);
-      pressTimer.current = null;
-    }
-    longPressFired.current = false;
-    stopPreview();
-  }, [stopPreview]);
-
   const aspect =
     size === "lg" ? "aspect-[16/9]" : size === "sm" ? "aspect-[16/10]" : "aspect-video";
 
+  const thumb = thumbFor(item);
+
   return (
-    <div ref={wrap.ref} className="w-full">
+    <div className="w-full">
       <button
         type="button"
         onClick={() => onOpen(item)}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        onTouchCancel={onTouchCancel}
         className={cx(
           "group relative w-full overflow-hidden rounded-3xl border border-white/10 bg-white/5 text-left backdrop-blur",
           "transition-all duration-300 hover:-translate-y-1 hover:border-white/20",
@@ -278,19 +161,7 @@ function VideoTile({
             )}
           </div>
 
-          <video
-            ref={vRef}
-            src={shouldLoad ? item.src : undefined}
-            preload={priority ? "auto" : shouldLoad ? "metadata" : "none"}
-            muted
-            playsInline
-            loop
-            className={cx(
-              "absolute inset-0 h-full w-full object-cover transform-gpu transition-opacity duration-200",
-              previewing && shouldLoad ? "opacity-100" : "opacity-0"
-            )}
-            onError={() => setCanPlay(false)}
-          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-black/5" />
 
           <div
             className={cx(
@@ -338,7 +209,7 @@ function Row({
         </div>
       </div>
 
-      <div className="mt-6 -mx-6 px-6 overflow-x-auto">
+      <div className="mt-6 -mx-6 overflow-x-auto px-6">
         <div className="flex gap-5 pb-2 snap-x snap-mandatory">
           {items.map((it, idx) => (
             <div key={it.id} className="w-[320px] sm:w-[360px] md:w-[420px] shrink-0 snap-start">
@@ -385,6 +256,8 @@ export default function ShowroomPage() {
     [videoOnlyItems]
   );
 
+  const isReelOpen = openItem?.subcategory === "reels";
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-neutral-950 text-white">
       <div className="pointer-events-none absolute inset-0">
@@ -409,7 +282,7 @@ export default function ShowroomPage() {
 
               <h1 className="mt-6 text-4xl font-semibold tracking-tight md:text-5xl">
                 Work that feels cinematic.
-                <span className="block text-white/80">Scroll. Hover. Press-hold.</span>
+                <span className="block text-white/80">Scroll. Tap. Watch.</span>
               </h1>
 
               <p className="mt-4 max-w-2xl text-white/70">
@@ -430,7 +303,7 @@ export default function ShowroomPage() {
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_18px_60px_rgba(0,0,0,0.35)]">
                 <div className="flex items-center justify-between">
                   <div className="text-xs font-semibold tracking-widest text-white/60">SPOTLIGHT</div>
-                  <div className="text-xs text-white/60">Hover/press-hold to preview • Tap/click to open</div>
+                  <div className="text-xs text-white/60">Click/tap to open</div>
                 </div>
 
                 <div className="mt-4 grid gap-5 lg:grid-cols-12">
@@ -489,7 +362,8 @@ export default function ShowroomPage() {
           >
             <motion.div
               className={cx(
-                "relative w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-neutral-950",
+                "relative w-full overflow-hidden rounded-3xl border border-white/10 bg-neutral-950",
+                isReelOpen ? "max-w-md" : "max-w-5xl",
                 glowBySubcat(openItem.subcategory)
               )}
               initial={{ y: 10, opacity: 0, scale: 0.99 }}
@@ -510,14 +384,24 @@ export default function ShowroomPage() {
               </div>
 
               <div className="p-5">
-                <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+                <div
+                  className={cx(
+                    "relative overflow-hidden rounded-2xl border border-white/10 bg-black/40",
+                    isReelOpen
+                      ? "mx-auto w-full max-w-[380px] aspect-[9/16]"
+                      : "w-full"
+                  )}
+                >
                   <video
                     src={openItem.src}
                     controls
                     autoPlay
                     playsInline
                     preload="auto"
-                    className="h-full w-full max-h-[75vh] object-contain"
+                    className={cx(
+                      "h-full w-full",
+                      isReelOpen ? "object-cover" : "max-h-[75vh] object-contain"
+                    )}
                   />
                   <div
                     className={cx(
@@ -541,7 +425,9 @@ export default function ShowroomPage() {
                 ) : null}
 
                 <div className="mt-6 flex items-center justify-between gap-3">
-                  <div className="text-xs text-white/50">Tip: press-hold tiles to preview • press ESC to close</div>
+                  <div className="text-xs text-white/50">
+                    {isReelOpen ? "Vertical reel view • Press ESC to close" : "Press ESC to close"}
+                  </div>
                   <Link
                     href="/insider-access"
                     className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white hover:bg-white/10 transition"

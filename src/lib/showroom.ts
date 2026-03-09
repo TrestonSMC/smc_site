@@ -1,6 +1,7 @@
 // /lib/showroom.ts
 
 export type ShowroomCategory = "video" | "web" | "app";
+
 export type ShowroomSubcategory =
   | "reels"
   | "weddings"
@@ -16,24 +17,33 @@ export type ShowroomItem = {
   category: ShowroomCategory;
   subcategory: ShowroomSubcategory;
   kind: "video" | "image" | "link";
-  src: string; // public URL (video/image)
+  src: string;
+  thumbnail?: string;
   tags?: string[];
   description?: string;
-  // later if you want:
-  // href?: string; // for web projects
 };
 
 const SUPABASE_BASE = "https://zzfbfgouvouiwhjcncga.supabase.co";
 const BUCKET = "smc-media";
 
-function publicVideoUrl(objectKey: string) {
-  // important for filenames like "reel 3.mp4" or "wedding 3.mp4"
-  return `${SUPABASE_BASE}/storage/v1/object/public/${BUCKET}/${encodeURIComponent(
-    objectKey
+/* ---------------- VIDEO URL ---------------- */
+
+function videoUrl(filename: string) {
+  return `${SUPABASE_BASE}/storage/v1/object/public/${BUCKET}/Videos/${encodeURIComponent(
+    filename
   )}`;
 }
 
-// ✅ Showroom media (NO hero.mp4)
+/* ---------------- THUMB URL ---------------- */
+
+function thumbUrl(filename: string) {
+  return `${SUPABASE_BASE}/storage/v1/object/public/${BUCKET}/Thumbs/${encodeURIComponent(
+    filename
+  )}`;
+}
+
+/* ---------------- SHOWROOM ITEMS ---------------- */
+
 export const showroomItems: ShowroomItem[] = [
   // Reels
   {
@@ -42,7 +52,8 @@ export const showroomItems: ShowroomItem[] = [
     category: "video",
     subcategory: "reels",
     kind: "video",
-    src: publicVideoUrl("reel_1.mp4"),
+    src: videoUrl("reel-1.mp4"),
+    thumbnail: thumbUrl("reel-1.jpg"),
     tags: ["Reels", "Vertical"],
   },
   {
@@ -51,7 +62,8 @@ export const showroomItems: ShowroomItem[] = [
     category: "video",
     subcategory: "reels",
     kind: "video",
-    src: publicVideoUrl("reel_2.mp4"),
+    src: videoUrl("reel-2.mp4"),
+    thumbnail: thumbUrl("reel-2.jpg"),
     tags: ["Reels", "Vertical"],
   },
   {
@@ -60,7 +72,8 @@ export const showroomItems: ShowroomItem[] = [
     category: "video",
     subcategory: "reels",
     kind: "video",
-    src: publicVideoUrl("reel 3.mp4"),
+    src: videoUrl("reel-3.mp4"),
+    thumbnail: thumbUrl("reel-3.jpg"),
     tags: ["Reels", "Vertical"],
   },
 
@@ -71,7 +84,8 @@ export const showroomItems: ShowroomItem[] = [
     category: "video",
     subcategory: "weddings",
     kind: "video",
-    src: publicVideoUrl("wedding_1.mp4"),
+    src: videoUrl("wedding-1.mp4"),
+    thumbnail: thumbUrl("wedding-1.jpg"),
     tags: ["Weddings"],
   },
   {
@@ -80,7 +94,8 @@ export const showroomItems: ShowroomItem[] = [
     category: "video",
     subcategory: "weddings",
     kind: "video",
-    src: publicVideoUrl("wedding_2.mp4"),
+    src: videoUrl("wedding-2.mp4"),
+    thumbnail: thumbUrl("wedding-2.jpg"),
     tags: ["Weddings"],
   },
   {
@@ -89,27 +104,31 @@ export const showroomItems: ShowroomItem[] = [
     category: "video",
     subcategory: "weddings",
     kind: "video",
-    src: publicVideoUrl("wedding 3.mp4"),
+    src: videoUrl("wedding-3.mp4"),
+    thumbnail: thumbUrl("wedding-3.jpg"),
     tags: ["Weddings"],
   },
 
-  // Content / Client Work
+  // Content
   {
     id: "content-1",
     title: "Content 1",
     category: "video",
     subcategory: "content",
     kind: "video",
-    src: publicVideoUrl("content_1.mp4"),
+    src: videoUrl("content-1.mp4"),
+    thumbnail: thumbUrl("content-1.jpg"),
     tags: ["Content"],
   },
+
   {
     id: "featured-client",
     title: "Featured Client",
     category: "video",
     subcategory: "featured",
     kind: "video",
-    src: publicVideoUrl("featured-client.mp4"),
+    src: videoUrl("featured-client.mp4"),
+    thumbnail: thumbUrl("featured-client.jpg"),
     tags: ["Client", "Featured"],
   },
 
@@ -120,7 +139,8 @@ export const showroomItems: ShowroomItem[] = [
     category: "app",
     subcategory: "app-preview",
     kind: "video",
-    src: publicVideoUrl("smc-app-preview.mp4"),
+    src: videoUrl("smc-app-preview.mp4"),
+    thumbnail: thumbUrl("smc-app-preview.jpg"),
     tags: ["App", "Preview"],
   },
 ];
