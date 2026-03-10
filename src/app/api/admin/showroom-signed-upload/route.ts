@@ -1,3 +1,4 @@
+// src/app/api/admin/showroom-signed-upload/route.ts
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -6,7 +7,6 @@ const BUCKET = "smc-media";
 export async function POST(req: Request) {
   try {
     const adminKey = req.headers.get("x-admin-upload-key");
-
     if (!adminKey || adminKey !== process.env.ADMIN_UPLOAD_KEY) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
