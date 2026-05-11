@@ -4,6 +4,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import listPlugin from "@fullcalendar/list";
 import type { EventClickArg } from "@fullcalendar/core";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -323,6 +324,7 @@ export default function AdminCalendarPage() {
     []
   );
 
+  const [isMobile, setIsMobile] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -340,6 +342,13 @@ export default function AdminCalendarPage() {
     endTime: "",
     recurring: "none",
   });
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const loadEvents = async () => {
     setLoading(true);
@@ -471,7 +480,7 @@ export default function AdminCalendarPage() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-neutral-950 px-4 py-10 text-white sm:px-6">
+    <main className="relative min-h-screen overflow-hidden bg-neutral-950 px-4 py-8 text-white sm:px-6 sm:py-10">
       <NebulaFull />
 
       <div className="relative z-10 mx-auto max-w-7xl">
@@ -493,14 +502,14 @@ export default function AdminCalendarPage() {
 
           <button
             onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-black/30 px-6 py-3 text-sm font-semibold text-white/95 shadow-[0_0_32px_rgba(0,180,255,0.16)] transition hover:bg-black/45"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-black/30 px-6 py-3 text-sm font-semibold text-white/95 shadow-[0_0_32px_rgba(0,180,255,0.16)] transition hover:bg-black/45 sm:w-auto"
           >
             <Plus className="h-4 w-4" />
             Create Event
           </button>
         </div>
 
-        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           {stats.map((item) => (
             <div
               key={item.label}
@@ -522,21 +531,36 @@ export default function AdminCalendarPage() {
           ))}
         </div>
 
-        <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.055] p-4 shadow-[0_28px_120px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.08)] backdrop-blur-xl sm:p-6">
+        <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.055] p-3 shadow-[0_28px_120px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.08)] backdrop-blur-xl sm:p-6">
           <div className="pointer-events-none absolute -inset-10 opacity-75 blur-3xl bg-[radial-gradient(circle_at_20%_20%,rgba(179,106,255,0.22),transparent_45%),radial-gradient(circle_at_80%_25%,rgba(0,180,255,0.22),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(255,196,92,0.13),transparent_48%)]" />
 
-          <div className="relative">
+          <div className="relative calendar-mobile-scroll">
             <FullCalendar
-              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-              initialView="dayGridMonth"
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+              initialView={isMobile ? "listWeek" : "dayGridMonth"}
               height="auto"
               eventClick={handleEventClick}
-              dayMaxEvents={3}
+              dayMaxEvents={isMobile ? 1 : 3}
               moreLinkClick="popover"
-              headerToolbar={{
-                left: "prev,next today",
-                center: "title",
-                right: "dayGridMonth,timeGridWeek,timeGridDay",
+              headerToolbar={
+                isMobile
+                  ? {
+                      left: "prev,next",
+                      center: "title",
+                      right: "listWeek,dayGridMonth",
+                    }
+                  : {
+                      left: "prev,next today",
+                      center: "title",
+                      right: "dayGridMonth,timeGridWeek,timeGridDay",
+                    }
+              }
+              buttonText={{
+                today: "Today",
+                month: "Month",
+                week: "Week",
+                day: "Day",
+                list: "List",
               }}
               events={events}
             />
@@ -546,7 +570,7 @@ export default function AdminCalendarPage() {
 
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-md">
-          <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950/95 p-6 shadow-[0_30px_140px_rgba(0,0,0,0.75)]">
+          <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950/95 p-5 shadow-[0_30px_140px_rgba(0,0,0,0.75)] sm:p-6">
             <div className="absolute -inset-10 opacity-60 blur-3xl bg-[radial-gradient(circle_at_20%_20%,rgba(0,180,255,0.20),transparent_45%),radial-gradient(circle_at_80%_40%,rgba(179,106,255,0.22),transparent_48%)]" />
 
             <div className="relative">
@@ -680,7 +704,7 @@ export default function AdminCalendarPage() {
 
       {selectedEvent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-md">
-          <div className="relative w-full max-w-xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950/95 p-6 shadow-[0_30px_140px_rgba(0,0,0,0.75)]">
+          <div className="relative w-full max-w-xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950/95 p-5 shadow-[0_30px_140px_rgba(0,0,0,0.75)] sm:p-6">
             <div className="absolute -inset-10 opacity-60 blur-3xl bg-[radial-gradient(circle_at_20%_20%,rgba(179,106,255,0.22),transparent_45%),radial-gradient(circle_at_80%_40%,rgba(0,180,255,0.20),transparent_48%)]" />
 
             <div className="relative">
@@ -854,6 +878,34 @@ export default function AdminCalendarPage() {
           color: white;
         }
 
+        .fc .fc-list {
+          border-radius: 1.25rem;
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(0, 0, 0, 0.16);
+        }
+
+        .fc .fc-list-day-cushion {
+          background: rgba(255, 255, 255, 0.07) !important;
+          color: white;
+          padding: 0.8rem 1rem !important;
+        }
+
+        .fc .fc-list-event td {
+          border-color: rgba(255, 255, 255, 0.08) !important;
+          padding: 0.85rem 0.7rem !important;
+        }
+
+        .fc .fc-list-event:hover td {
+          background: rgba(255, 255, 255, 0.06) !important;
+        }
+
+        .fc .fc-list-event-title,
+        .fc .fc-list-event-time {
+          color: rgba(255, 255, 255, 0.88);
+          font-size: 0.85rem;
+        }
+
         .fc .event-glow-gold {
           box-shadow: 0 0 24px rgba(255, 196, 92, 0.28);
         }
@@ -910,6 +962,37 @@ export default function AdminCalendarPage() {
           .fc .fc-toolbar {
             flex-direction: column;
             gap: 0.85rem;
+          }
+
+          .fc .fc-toolbar-title {
+            font-size: 1.05rem;
+            text-align: center;
+          }
+
+          .fc .fc-header-toolbar {
+            gap: 0.7rem;
+          }
+
+          .fc .fc-toolbar-chunk {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.35rem;
+          }
+
+          .fc .fc-button {
+            padding: 0.45rem 0.65rem !important;
+            font-size: 0.68rem !important;
+          }
+
+          .fc .fc-scrollgrid {
+            min-width: 720px;
+          }
+
+          .calendar-mobile-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 0.5rem;
           }
         }
       `}</style>
