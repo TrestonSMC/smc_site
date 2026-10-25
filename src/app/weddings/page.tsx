@@ -27,6 +27,8 @@ type Package = {
   included: string[];
 };
 
+const HERO_VIDEO_URL = "https://zzfbfgouvouiwhjcncga.supabase.co/storage/v1/object/public/smc-media/Videos/mccord-wedding-teaser.mp4";
+
 const fadeUp = {
   hidden: { opacity: 0, y: 18 },
   visible: { opacity: 1, y: 0 },
@@ -70,17 +72,11 @@ function useForcePlay(videoRef: React.RefObject<HTMLVideoElement | null>) {
 export default function WeddingsPage() {
   const reduceMotion = useReducedMotion();
 
-  const WEDDINGS_2_URL =
-    "https://zzfbfgouvouiwhjcncga.supabase.co/storage/v1/object/public/smc-media/wedding_2.mp4";
-
   // ✅ refs typed correctly for TS
-  const bgVideoRef = useRef<HTMLVideoElement | null>(null);
   const heroVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  const [bgOk, setBgOk] = useState(true);
   const [heroOk, setHeroOk] = useState(true);
 
-  useForcePlay(bgVideoRef);
   useForcePlay(heroVideoRef);
 
   const packages: Package[] = [
@@ -194,34 +190,10 @@ export default function WeddingsPage() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-neutral-950 text-white">
-      {/* ✅ Full-page video background (tiny blur via backdrop, not blur() filter) */}
-      <div className="pointer-events-none fixed inset-0 -z-30">
-        {bgOk ? (
-          <video
-            ref={bgVideoRef}
-            className="h-full w-full object-cover scale-[1.03]"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            crossOrigin="anonymous"
-            onError={() => setBgOk(false)}
-          >
-            <source src={WEDDINGS_2_URL} type="video/mp4" />
-          </video>
-        ) : (
-          <div className="h-full w-full bg-[radial-gradient(circle_at_30%_25%,rgba(179,106,255,0.18),transparent_55%),radial-gradient(circle_at_78%_30%,rgba(0,180,255,0.16),transparent_58%),radial-gradient(circle_at_55%_80%,rgba(255,196,92,0.10),transparent_62%)]" />
-        )}
-
-        <div className="absolute inset-0 backdrop-blur-[2px]" />
-        <div className="absolute inset-0 bg-black/60" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,transparent_35%,rgba(0,0,0,0.55)_72%,rgba(0,0,0,0.85)_100%)]" />
-      </div>
-
+    <main className="relative isolate min-h-screen overflow-hidden bg-neutral-950 text-white">
       {/* Global nebula accents + stars (kept) */}
-      <div className="pointer-events-none absolute inset-0 -z-20">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute inset-0 bg-neutral-950" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.10),transparent_40%),radial-gradient(circle_at_80%_30%,rgba(255,255,255,0.08),transparent_42%),radial-gradient(circle_at_40%_80%,rgba(255,255,255,0.06),transparent_45%)]" />
         <div className="absolute -top-52 left-[10%] h-[620px] w-[620px] rounded-full bg-[radial-gradient(circle,rgba(179,106,255,0.20),transparent_60%)] blur-3xl" />
         <div className="absolute -top-40 right-[5%] h-[680px] w-[680px] rounded-full bg-[radial-gradient(circle,rgba(0,180,255,0.16),transparent_62%)] blur-3xl" />
@@ -231,7 +203,7 @@ export default function WeddingsPage() {
       </div>
 
       {/* Top */}
-      <header className="relative mx-auto max-w-6xl px-6 pt-10">
+      <header className="relative z-10 mx-auto max-w-6xl px-6 pt-10">
         <div className="flex items-center justify-between">
           <Link
             href="/services"
@@ -256,13 +228,13 @@ export default function WeddingsPage() {
           initial="hidden"
           animate="visible"
           variants={stagger}
-          className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_30px_110px_rgba(0,0,0,0.55)]"
+          className="relative isolate min-h-[480px] md:min-h-[560px] overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_30px_110px_rgba(0,0,0,0.55)]"
         >
-          <div className="absolute inset-0">
+          <div className="absolute inset-0 z-0 overflow-hidden">
             {heroOk ? (
               <video
                 ref={heroVideoRef}
-                className="h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover"
                 autoPlay
                 muted
                 loop
@@ -271,18 +243,20 @@ export default function WeddingsPage() {
                 crossOrigin="anonymous"
                 onError={() => setHeroOk(false)}
               >
-                <source src={WEDDINGS_2_URL} type="video/mp4" />
+                <source src={HERO_VIDEO_URL} type="video/mp4" />
               </video>
             ) : (
               <div className="h-full w-full bg-[radial-gradient(circle_at_30%_25%,rgba(179,106,255,0.18),transparent_55%),radial-gradient(circle_at_78%_30%,rgba(0,180,255,0.16),transparent_58%),radial-gradient(circle_at_55%_80%,rgba(255,196,92,0.10),transparent_62%)]" />
             )}
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" />
+            <div className="absolute inset-0 bg-black/30" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/10" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-black/20" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,rgba(179,106,255,0.18),transparent_55%),radial-gradient(circle_at_78%_30%,rgba(0,180,255,0.16),transparent_58%),radial-gradient(circle_at_55%_80%,rgba(255,196,92,0.10),transparent_62%)]" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,0.10),transparent_55%)]" />
           </div>
 
-          <div className="relative p-10 md:p-12">
+          <div className="relative z-10 flex min-h-[480px] md:min-h-[560px] flex-col justify-center p-10 md:p-12">
             <motion.p variants={fadeUp} className="text-sm font-semibold tracking-widest text-white/60">
               WEDDING FILMS
             </motion.p>
@@ -446,7 +420,7 @@ export default function WeddingsPage() {
         </div>
       </section>
 
-      <footer className="relative border-t border-white/10 py-10">
+      <footer className="relative z-10 border-t border-white/10 py-10">
         <div className="mx-auto max-w-6xl px-6 text-sm text-white/50">
           © {new Date().getFullYear()} Slater Media Company — Weddings
         </div>
